@@ -719,6 +719,7 @@ function generateItems() {
     const startIncrement = getBidIncrement(rawBid);
     const startBid = Math.floor(rawBid / startIncrement) * startIncrement;
     const bidCount = 4 + Math.floor(rng() * 28);
+    const simCap = 300000 + Math.floor(rng() * 300000);
     const lotNum = 1001 + i;
     const watchlisted = lotNum === 1004 || lotNum === 1011 || lotNum === 1017;
     const thumbnail = watchlisted ? 'thumbnails/5.jpg' : THUMBNAILS[Math.floor(rng() * THUMBNAILS.length)];
@@ -746,6 +747,7 @@ function generateItems() {
       watchlisted,
       userBid: false,
       userWinning: false,
+      simCap,
     });
   }
 
@@ -1073,6 +1075,7 @@ function placeBid(itemId) {
 // ── SIMULATION ───────────────────────────────────────────────────────────────
 
 function simBidOnItem(item) {
+  if (item.currentBid >= item.simCap) return;
   const secsLeft = (item.closeTime - Date.now()) / 1000;
   const increment = getBidIncrement(item.currentBid);
   item.currentBid += increment;
