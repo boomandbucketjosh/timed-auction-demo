@@ -1072,26 +1072,12 @@ function placeBid(itemId) {
 
 // ── SIMULATION ───────────────────────────────────────────────────────────────
 
-function simulateActivity() {
-  const active = items.filter(i => i.status === 'active');
-  if (active.length === 0) return;
-
-  // Find items closing within 3 minutes
-  const near = active.filter(i => {
-    const secs = (i.closeTime - Date.now()) / 1000;
-    return secs > 0 && secs < 180;
-  });
-
-  const pool = near.length > 0 ? near : active.slice(0, Math.min(10, active.length));
-  const item = pool[Math.floor(Math.random() * pool.length)];
-  if (!item) return;
-
+function simBidOnItem(item) {
   const secsLeft = (item.closeTime - Date.now()) / 1000;
   const increment = getBidIncrement(item.currentBid);
   item.currentBid += increment;
   item.bidCount++;
 
-  // Outbid the user if they were winning
   if (item.userBid && item.userWinning) {
     item.userWinning = false;
     updateBidStatus(item);
@@ -1106,12 +1092,34 @@ function simulateActivity() {
 
   updateTile(item);
 
-  if (extended) {
-    if (V2_RESHUFFLE) renderGrid();
-    showToast(`LOT #${item.lotNum} — New bid! Auto extended`, 'purple');
-  } else {
-    // quiet — only toast for bidder-placed bids or extensions
-  }
+  if (extended && V2_RESHUFFLE) renderGrid();
+  if (extended) showToast(`LOT #${item.lotNum} — New bid! Auto extended`, 'purple');
+}
+
+function simulateActivity() {
+  const now = Date.now();
+  const active = items.filter(i => i.status === 'active');
+  if (active.length === 0) return;
+
+  // Hot: closing within 90s — very contested
+  const hot    = active.filter(i => { const s = (i.closeTime - now) / 1000; return s > 0 && s < 90; });
+  // Warm: closing within 5 min — moderate activity
+  const warm   = active.filter(i => { const s = (i.closeTime - now) / 1000; return s >= 90 && s < 300; });
+  // Cool: anything beyond 5 min — background bids
+  const cool   = active.filter(i => (i.closeTime - now) / 1000 >= 300);
+
+  // Always bid on every hot item this cycle
+  for (const item of hot) simBidOnItem(item);
+
+  // Pick 2–5 warm items
+  const warmCount = 2 + Math.floor(Math.random() * 4);
+  const warmShuffled = warm.slice().sort(() => Math.random() - 0.5);
+  for (let i = 0; i < Math.min(warmCount, warmShuffled.length); i++) simBidOnItem(warmShuffled[i]);
+
+  // Pick 1–3 cool items (background noise)
+  const coolCount = 1 + Math.floor(Math.random() * 3);
+  const coolShuffled = cool.slice().sort(() => Math.random() - 0.5);
+  for (let i = 0; i < Math.min(coolCount, coolShuffled.length); i++) simBidOnItem(coolShuffled[i]);
 }
 
 // ── TICK ─────────────────────────────────────────────────────────────────────
@@ -1157,7 +1165,7 @@ renderGrid();
 setInterval(tick, 1000);
 
 (function scheduleActivity() {
-  setTimeout(() => { simulateActivity(); scheduleActivity(); }, 5000 + Math.random() * 6000);
+  setTimeout(() => { simulateActivity(); scheduleActivity(); }, 1000 + Math.random() * 2000);
 })();
 
 // Version badge
