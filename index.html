@@ -242,14 +242,14 @@
     border-width: 2px;
   }
 
-  /* extend flash — card goes gray then fades back */
-  .tile.extending {
-    filter: grayscale(1) brightness(0.88);
-    transition: filter 0s;
+  /* extend flash — single keyframe animation, no class swapping needed */
+  @keyframes extendFlash {
+    0%   { filter: grayscale(1) brightness(0.15); }
+    45%  { filter: grayscale(1) brightness(0.15); }
+    100% { filter: grayscale(0) brightness(1); }
   }
-  .tile.extend-fade {
-    filter: grayscale(0) brightness(1);
-    transition: filter 1.8s ease-out;
+  .tile.extending {
+    animation: extendFlash 3.5s ease-out forwards;
   }
 
   /* sold fade */
@@ -283,6 +283,31 @@
     background: #EEEEEE;
     letter-spacing: 0.5px;
     text-transform: uppercase;
+  }
+
+  /* bid status banner */
+  .bid-status-banner {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-align: center;
+    text-transform: uppercase;
+    display: none;
+  }
+  .bid-status-banner.winning {
+    display: block;
+    background: rgba(27, 94, 32, 0.88);
+    color: #fff;
+  }
+  .bid-status-banner.outbid {
+    display: block;
+    background: rgba(183, 28, 28, 0.88);
+    color: #fff;
   }
 
   /* extended badge */
@@ -456,6 +481,13 @@
   .bid-btn:hover  { background: #E65100; }
   .bid-btn:active { transform: scale(0.98); }
   .bid-btn.flash  { background: #388E3C; color: #fff; }
+  @keyframes btnUrgentFlash {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+  .bid-btn.urgent-flash {
+    animation: btnUrgentFlash 1.4s ease-in-out infinite;
+  }
 
   /* ── TOASTS ── */
   .toast-container {
@@ -536,7 +568,7 @@
   .header-nav-inner { max-width: 1680px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
   .auction-bar { padding-left: 24px; padding-right: 24px; }
   .legend-bar  { padding-left: 24px; padding-right: 24px; }
-  .grid-container { padding: 10px 24px 40px; }
+  .grid-container { padding: 10px 24px 40px; max-width: 1680px; margin: 0 auto; }
 </style>
 </head>
 <body>
@@ -618,6 +650,10 @@
 <div id="version-badge"></div>
 
 <script>
+// ── FEATURE FLAGS ────────────────────────────────────────────────────────────
+// v2: re-sort the grid after an auto-extension (true = reshuffle, false = stay put)
+const V2_RESHUFFLE = true;
+
 // ── DATA GENERATION ──────────────────────────────────────────────────────────
 
 const THUMBNAILS = [
@@ -679,7 +715,9 @@ function generateItems() {
     const model = eq.models[Math.floor(rng() * eq.models.length)];
     const year = 2015 + Math.floor(rng() * 9);
     const location = LOCATIONS[Math.floor(rng() * LOCATIONS.length)];
-    const startBid = eq.baseBid + Math.floor(rng() * eq.spread);
+    const rawBid = eq.baseBid + Math.floor(rng() * eq.spread);
+    const startIncrement = getBidIncrement(rawBid);
+    const startBid = Math.floor(rawBid / startIncrement) * startIncrement;
     const bidCount = 4 + Math.floor(rng() * 28);
     const lotNum = 1001 + i;
     const watchlisted = lotNum === 1004 || lotNum === 1011 || lotNum === 1017;
@@ -706,6 +744,8 @@ function generateItems() {
       extendedUntil: 0,
       extendCount: 0,
       watchlisted,
+      userBid: false,
+      userWinning: false,
     });
   }
 
@@ -782,6 +822,9 @@ function buildTile(item) {
       <div class="extended-badge${extVisible ? ' visible' : ''}" id="badge-${item.id}">
         ⚡ AUTO EXTENDED
       </div>
+      <div class="bid-status-banner${item.userBid ? (item.userWinning ? ' winning' : ' outbid') : ''}" id="status-${item.id}">
+        ${item.userBid ? (item.userWinning ? 'Winning' : 'Outbid') : ''}
+      </div>
       <div class="sold-overlay" id="overlay-${item.id}">
         <div class="sold-text">SOLD</div>
         <div class="sold-price">${fmt$(item.currentBid)}</div>
@@ -830,7 +873,10 @@ function buildTile(item) {
 function renderGrid() {
   const grid = document.getElementById('auction-grid');
   const emptyState = document.getElementById('empty-state');
-  const active = items.filter(i => i.status === 'active').sort((a, b) => a.closeTime - b.closeTime);
+  const active = items.filter(i => i.status === 'active')
+    .sort((a, b) => V2_RESHUFFLE
+      ? a.closeTime - b.closeTime
+      : a.originalClose - b.originalClose);
 
   // Remove tiles for items no longer in active list (already sold & faded)
   const existingIds = new Set(Array.from(grid.querySelectorAll('.tile')).map(el => Number(el.dataset.id)));
@@ -856,6 +902,13 @@ function renderGrid() {
   emptyState.classList.toggle('visible', active.length === 0);
 }
 
+function updateBidStatus(item) {
+  const el = document.getElementById(`status-${item.id}`);
+  if (!el) return;
+  el.className = 'bid-status-banner' + (item.userBid ? (item.userWinning ? ' winning' : ' outbid') : '');
+  el.textContent  = item.userBid ? (item.userWinning ? 'Winning' : 'Outbid') : '';
+}
+
 function updateTile(item) {
   const secsLeft = Math.max(0, Math.ceil((item.closeTime - Date.now()) / 1000));
   const state = timerState(secsLeft);
@@ -865,8 +918,9 @@ function updateTile(item) {
   const tile = document.getElementById(`tile-${item.id}`);
   if (!tile) return;
 
-  // Update state class
-  tile.className = `tile state-${state}${item.watchlisted ? ' watchlisted' : ''}`;
+  // Update state class (preserve extending so its animation isn't killed mid-frame)
+  const wasExtending = tile.classList.contains('extending');
+  tile.className = `tile state-${state}${item.watchlisted ? ' watchlisted' : ''}${wasExtending ? ' extending' : ''}`;
 
   // Update timer
   const timerEl = document.getElementById(`timer-${item.id}`);
@@ -889,6 +943,13 @@ function updateTile(item) {
   if (bidEl) bidEl.textContent = fmt$(item.currentBid);
   const countEl = document.getElementById(`count-${item.id}`);
   if (countEl) countEl.textContent = item.bidCount;
+  updateBidStatus(item);
+
+  // Flash BID NOW button if watchlisted and closing in < 15 seconds
+  const btnEl = document.getElementById(`btn-${item.id}`);
+  if (btnEl && !btnEl.classList.contains('flash')) {
+    btnEl.classList.toggle('urgent-flash', item.watchlisted && secsLeft < 15);
+  }
 }
 
 
@@ -899,16 +960,15 @@ function extendItem(item, addSeconds) {
   item.extendedUntil = Date.now() + 5000;
   item.extendCount++;
 
-  // Flash gray then fade back so it's obvious the card moved
-  const tile = document.getElementById(`tile-${item.id}`);
-  if (tile) {
-    tile.classList.remove('extend-fade');
-    tile.classList.add('extending');
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+  // Flash full black only for watched/bid-on items
+  if (item.watchlisted || item.userBid) {
+    const tile = document.getElementById(`tile-${item.id}`);
+    if (tile) {
       tile.classList.remove('extending');
-      tile.classList.add('extend-fade');
-    }));
-    setTimeout(() => tile.classList.remove('extend-fade'), 2000);
+      void tile.offsetWidth;
+      tile.classList.add('extending');
+      setTimeout(() => tile.classList.remove('extending'), 3500);
+    }
   }
 }
 
@@ -967,6 +1027,11 @@ function placeBid(itemId) {
   item.currentBid += increment;
   item.bidCount++;
 
+  // Mark user as winning bidder
+  item.userBid = true;
+  item.userWinning = true;
+  updateBidStatus(item);
+
   // Auto-watchlist on bid
   if (!item.watchlisted) {
     item.watchlisted = true;
@@ -999,8 +1064,8 @@ function placeBid(itemId) {
   updateTile(item);
 
   if (extended) {
-    renderGrid(); // re-sort
-    showToast(`LOT #${item.lotNum} — Bid placed! Auto extended +3:00`, 'purple');
+    if (V2_RESHUFFLE) renderGrid();
+    showToast(`LOT #${item.lotNum} — Bid placed! Auto extended +1:00`, 'purple');
   } else {
     showToast(`LOT #${item.lotNum} — Bid placed! ${fmt$(item.currentBid)}`, 'orange');
   }
@@ -1027,6 +1092,13 @@ function simulateActivity() {
   item.currentBid += increment;
   item.bidCount++;
 
+  // Outbid the user if they were winning
+  if (item.userBid && item.userWinning) {
+    item.userWinning = false;
+    updateBidStatus(item);
+    showToast(`LOT #${item.lotNum} — You've been outbid!`, 'orange');
+  }
+
   let extended = false;
   if (secsLeft < 60 && Math.random() < 0.65) {
     extendItem(item, 60);
@@ -1036,7 +1108,7 @@ function simulateActivity() {
   updateTile(item);
 
   if (extended) {
-    renderGrid();
+    if (V2_RESHUFFLE) renderGrid();
     showToast(`LOT #${item.lotNum} — New bid! Auto extended`, 'purple');
   } else {
     // quiet — only toast for bidder-placed bids or extensions
