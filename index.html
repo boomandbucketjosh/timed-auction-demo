@@ -431,16 +431,6 @@
   .state-warning  .timer-display { color: var(--amber); }
   .state-urgent   .timer-display { color: var(--orange); }
   .state-critical .timer-display { color: var(--red); }
-  .timer-state-label {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    color: var(--dim);
-  }
-  .state-warning  .timer-state-label { color: var(--amber); }
-  .state-urgent   .timer-state-label { color: var(--orange); }
-  .state-critical .timer-state-label { color: var(--red); }
 
   /* progress bar */
   .progress-wrap {
@@ -771,12 +761,6 @@ function timerState(secsLeft) {
   return 'normal';
 }
 
-function stateLabel(secsLeft) {
-  if (secsLeft <= 30)  return 'CLOSING NOW';
-  if (secsLeft <= 120) return 'URGENT';
-  if (secsLeft <= 300) return 'CLOSING SOON';
-  return '';
-}
 
 function formatTime(secs) {
   if (secs <= 0) return '0:00';
@@ -794,7 +778,6 @@ function progressPct(item) {
 function buildTile(item) {
   const secsLeft = Math.max(0, Math.ceil((item.closeTime - Date.now()) / 1000));
   const state = timerState(secsLeft);
-  const label = stateLabel(secsLeft);
   const pct = progressPct(item);
   const extVisible = Date.now() < item.extendedUntil;
 
@@ -857,7 +840,6 @@ function buildTile(item) {
     <div class="tile-footer">
       <div class="timer-row">
         <div class="timer-display" id="timer-${item.id}">${formatTime(secsLeft)}</div>
-        <div class="timer-state-label">${label}</div>
       </div>
       <div class="progress-wrap">
         <div class="progress-fill" id="prog-${item.id}" style="width:${pct}%"></div>
@@ -913,7 +895,6 @@ function updateBidStatus(item) {
 function updateTile(item, secsLeft) {
   if (secsLeft === undefined) secsLeft = Math.max(0, Math.ceil((item.closeTime - Date.now()) / 1000));
   const state = timerState(secsLeft);
-  const label = stateLabel(secsLeft);
   const pct = progressPct(item);
 
   const tile = document.getElementById(`tile-${item.id}`);
@@ -926,10 +907,6 @@ function updateTile(item, secsLeft) {
   // Update timer
   const timerEl = document.getElementById(`timer-${item.id}`);
   if (timerEl) timerEl.textContent = formatTime(secsLeft);
-
-  // Update label
-  const labelEl = tile.querySelector('.timer-state-label');
-  if (labelEl) labelEl.textContent = label;
 
   // Update progress
   const prog = document.getElementById(`prog-${item.id}`);
