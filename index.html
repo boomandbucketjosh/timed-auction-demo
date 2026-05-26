@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Heavy Equipment Auction — LIVE</title>
+<meta name="build-version" content="1.0.0">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -241,6 +242,16 @@
     border-width: 2px;
   }
 
+  /* extend flash — card goes gray then fades back */
+  .tile.extending {
+    filter: grayscale(1) brightness(0.88);
+    transition: filter 0s;
+  }
+  .tile.extend-fade {
+    filter: grayscale(0) brightness(1);
+    transition: filter 1.8s ease-out;
+  }
+
   /* sold fade */
   .tile.selling {
     opacity: 0;
@@ -476,6 +487,17 @@
   @keyframes toastIn  { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
   @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(16px); } }
 
+  /* ── VERSION BADGE ── */
+  #version-badge {
+    position: fixed;
+    bottom: 8px;
+    left: 12px;
+    font-size: 10px;
+    color: #CFCFCF;
+    z-index: 999;
+    pointer-events: none;
+  }
+
   /* ── EMPTY STATE ── */
   .empty-state {
     grid-column: 1 / -1;
@@ -591,6 +613,9 @@
 
 <!-- TOASTS -->
 <div class="toast-container" id="toast-container"></div>
+
+<!-- VERSION -->
+<div id="version-badge"></div>
 
 <script>
 // ── DATA GENERATION ──────────────────────────────────────────────────────────
@@ -873,6 +898,18 @@ function extendItem(item, addSeconds) {
   item.closeTime += addSeconds * 1000;
   item.extendedUntil = Date.now() + 5000;
   item.extendCount++;
+
+  // Flash gray then fade back so it's obvious the card moved
+  const tile = document.getElementById(`tile-${item.id}`);
+  if (tile) {
+    tile.classList.remove('extend-fade');
+    tile.classList.add('extending');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      tile.classList.remove('extending');
+      tile.classList.add('extend-fade');
+    }));
+    setTimeout(() => tile.classList.remove('extend-fade'), 2000);
+  }
 }
 
 function sellItem(item) {
@@ -1045,10 +1082,13 @@ function showToast(msg, type = 'orange') {
 renderGrid();
 setInterval(tick, 1000);
 
-// Self-scheduling simulation with random interval variation
 (function scheduleActivity() {
   setTimeout(() => { simulateActivity(); scheduleActivity(); }, 5000 + Math.random() * 6000);
 })();
+
+// Version badge
+const _v = document.querySelector('meta[name="build-version"]');
+if (_v) document.getElementById('version-badge').textContent = 'v' + _v.content;
 
 </script>
 </body>

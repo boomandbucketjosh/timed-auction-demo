@@ -1,0 +1,33 @@
+name: Bump Version
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'VERSION'
+      - '.github/**'
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Bump patch version
+        run: |
+          version=$(cat VERSION | tr -d '[:space:]')
+          IFS='.' read -r major minor patch <<< "$version"
+          new_version="$major.$minor.$((patch + 1))"
+          echo "$new_version" > VERSION
+          sed -i "s/name=\"build-version\" content=\"[^\"]*\"/name=\"build-version\" content=\"$new_version\"/" index.html
+          echo "Bumped to $new_version"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION index.html
+          git commit -m "chore: bump version to $(cat VERSION) [skip ci]"
+          git push
