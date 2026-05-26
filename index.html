@@ -705,11 +705,16 @@ function generateItems() {
     const model = eq.models[Math.floor(rng() * eq.models.length)];
     const year = 2015 + Math.floor(rng() * 9);
     const location = LOCATIONS[Math.floor(rng() * LOCATIONS.length)];
-    const rawBid = eq.baseBid + Math.floor(rng() * eq.spread);
+    const simCap = 10000 + Math.floor(rng() * 490000);
+    // Items closing soonest (i=0) start near 90% of cap; latest (i=99) near 30%
+    const fraction = i / 99;
+    const baseProgress = 0.9 - fraction * 0.6;
+    const jitter = (rng() - 0.5) * 0.12;
+    const bidProgress = Math.max(0.05, Math.min(0.95, baseProgress + jitter));
+    const rawBid = Math.round(simCap * bidProgress);
     const startIncrement = getBidIncrement(rawBid);
-    const startBid = Math.floor(rawBid / startIncrement) * startIncrement;
-    const bidCount = 4 + Math.floor(rng() * 28);
-    const simCap = 300000 + Math.floor(rng() * 300000);
+    const startBid = Math.max(startIncrement, Math.floor(rawBid / startIncrement) * startIncrement);
+    const bidCount = Math.round(5 + bidProgress * 70 + rng() * 25);
     const lotNum = 1001 + i;
     const watchlisted = lotNum === 1004 || lotNum === 1011 || lotNum === 1017;
     const thumbnail = watchlisted ? 'thumbnails/5.jpg' : THUMBNAILS[Math.floor(rng() * THUMBNAILS.length)];
