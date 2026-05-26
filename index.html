@@ -763,7 +763,6 @@ let totalSales = 0;
 // ── RENDER ───────────────────────────────────────────────────────────────────
 
 function timerState(secsLeft) {
-  if (secsLeft <= 0)   return 'sold';
   if (secsLeft <= 30)  return 'critical';
   if (secsLeft <= 120) return 'urgent';
   if (secsLeft <= 300) return 'warning';
@@ -909,8 +908,8 @@ function updateBidStatus(item) {
   el.textContent  = item.userBid ? (item.userWinning ? 'Winning' : 'Outbid') : '';
 }
 
-function updateTile(item) {
-  const secsLeft = Math.max(0, Math.ceil((item.closeTime - Date.now()) / 1000));
+function updateTile(item, secsLeft) {
+  if (secsLeft === undefined) secsLeft = Math.max(0, Math.ceil((item.closeTime - Date.now()) / 1000));
   const state = timerState(secsLeft);
   const label = stateLabel(secsLeft);
   const pct = progressPct(item);
@@ -1124,15 +1123,18 @@ function tick() {
   for (const item of items) {
     if (item.status !== 'active') continue;
 
-    const secsLeft = Math.ceil((item.closeTime - now) / 1000);
+    const msLeft = item.closeTime - now;
 
-    if (secsLeft <= 0) {
+    // One full second past 0:00 → sell
+    if (msLeft <= -1000) {
       sellItem(item);
       needsReorder = true;
       continue;
     }
 
-    updateTile(item);
+    // Clamp display to 0 so it shows 0:00 for that final second
+    const secsLeft = Math.max(0, Math.ceil(msLeft / 1000));
+    updateTile(item, secsLeft);
   }
 
   if (needsReorder) renderGrid();
