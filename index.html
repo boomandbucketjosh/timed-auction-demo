@@ -719,8 +719,9 @@ function generateItems() {
     const watchlisted = lotNum === 1004 || lotNum === 1011 || lotNum === 1017;
     const thumbnail = watchlisted ? 'thumbnails/5.jpg' : THUMBNAILS[Math.floor(rng() * THUMBNAILS.length)];
 
-    // Each item closes 10s apart, starting at 20s from now
-    const closeTime = now + (20 + i * 10) * 1000;
+    // All items close within ~65s of page load (5s first, 0.6s stagger)
+    // Extensions keep the auction alive well past that
+    const closeTime = now + (5 + i * 0.6) * 1000;
 
     items.push({
       id: lotNum,
@@ -776,7 +777,7 @@ function formatTime(secs) {
 
 function progressPct(item) {
   const remaining = item.closeTime - Date.now();
-  const fullSpan = 17 * 60 * 1000;
+  const fullSpan = 65 * 1000;
   return Math.max(0, Math.min(100, (remaining / fullSpan) * 100));
 }
 
