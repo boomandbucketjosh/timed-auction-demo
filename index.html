@@ -361,22 +361,13 @@
     padding: 7px 8px 0;
     flex: 1;
   }
-  .tile-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1px;
-  }
   .tile-lot {
     font-size: 9px;
     font-weight: 700;
     color: var(--orange);
     letter-spacing: 0.5px;
     text-transform: uppercase;
-  }
-  .tile-year {
-    font-size: 9px;
-    color: var(--dim);
+    margin-bottom: 1px;
   }
   .tile-name {
     font-size: 11px;
@@ -394,21 +385,22 @@
     display: flex;
     align-items: center;
     gap: 2px;
+    margin-bottom: 4px;
+  }
+  .tile-hours {
+    font-size: 9px;
+    color: var(--muted);
     margin-bottom: 6px;
   }
-  .tile-bid-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
+  .tile-bid-section {
     border-top: 1px solid var(--card-border);
     padding-top: 5px;
     margin-bottom: 6px;
   }
-  .tile.watchlisted .tile-bid-row { border-top-color: #F9C784; }
-  .bid-current-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.4px; }
-  .bid-current-value { font-size: 13px; font-weight: 700; color: var(--navy); line-height: 1.1; }
-  .bid-count-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.4px; text-align: right; }
-  .bid-count-value { font-size: 12px; font-weight: 600; color: var(--muted); text-align: right; line-height: 1.1; }
+  .tile.watchlisted .tile-bid-section { border-top-color: #F9C784; }
+  .bid-price { font-size: 14px; font-weight: 700; color: var(--navy); line-height: 1.2; }
+  .bid-currency { font-size: 9px; color: var(--dim); margin-bottom: 1px; }
+  .bid-count-val { font-size: 9px; color: var(--dim); }
 
   /* ── TILE FOOTER ── */
   .tile-footer {
@@ -693,6 +685,10 @@ function fmt$(n) {
   return '$' + Math.round(n).toLocaleString();
 }
 
+function fmtHr(h) {
+  return h.toLocaleString() + ' hr';
+}
+
 function generateItems() {
   const items = [];
   const now = Date.now();
@@ -715,6 +711,9 @@ function generateItems() {
     const startIncrement = getBidIncrement(rawBid);
     const startBid = Math.max(startIncrement, Math.floor(rawBid / startIncrement) * startIncrement);
     const bidCount = Math.round(5 + bidProgress * 70 + rng() * 25);
+    // Hours scale with age: ~1000–1600 hrs/year, rounded to nearest 10
+    const hoursPerYear = 1000 + Math.floor(rng() * 600);
+    const hours = Math.round((hoursPerYear * (2026 - year) + Math.floor(rng() * 500)) / 10) * 10;
     const lotNum = 1001 + i;
     const watchlisted = lotNum === 1004 || lotNum === 1011 || lotNum === 1017;
     const thumbnail = watchlisted ? 'thumbnails/5.jpg' : THUMBNAILS[Math.floor(rng() * THUMBNAILS.length)];
@@ -743,6 +742,7 @@ function generateItems() {
       userBid: false,
       userWinning: false,
       simCap,
+      hours,
     });
   }
 
@@ -820,26 +820,19 @@ function buildTile(item) {
       </div>
     </div>
     <div class="tile-body">
-      <div class="tile-meta">
-        <span class="tile-lot">LOT #${item.lotNum}</span>
-        <span class="tile-year">${item.year}</span>
-      </div>
-      <div class="tile-name">${item.make} ${item.model} ${item.type}</div>
+      <div class="tile-lot">LOT #${item.lotNum}</div>
+      <div class="tile-name">${item.year} ${item.make} ${item.model} ${item.type}</div>
       <div class="tile-location">
         <svg width="10" height="12" viewBox="0 0 10 12" fill="none" style="flex-shrink:0">
           <path d="M5 0C2.24 0 0 2.24 0 5c0 3.75 5 7 5 7s5-3.25 5-7c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 1 1 5 3.5a1.5 1.5 0 0 1 0 3z" fill="#6b7280"/>
         </svg>
         ${item.location}
       </div>
-      <div class="tile-bid-row">
-        <div>
-          <div class="bid-current-label">Current Bid</div>
-          <div class="bid-current-value" id="bid-${item.id}">${fmt$(item.currentBid)}</div>
-        </div>
-        <div>
-          <div class="bid-count-label">Bids</div>
-          <div class="bid-count-value" id="count-${item.id}">${item.bidCount}</div>
-        </div>
+      <div class="tile-hours">${fmtHr(item.hours)}</div>
+      <div class="tile-bid-section">
+        <div class="bid-price" id="bid-${item.id}">${fmt$(item.currentBid)}</div>
+        <div class="bid-currency">USD</div>
+        <div class="bid-count-val" id="count-${item.id}">${item.bidCount} bids</div>
       </div>
     </div>
     <div class="tile-footer">
@@ -925,7 +918,7 @@ function updateTile(item, secsLeft) {
   const bidEl = document.getElementById(`bid-${item.id}`);
   if (bidEl) bidEl.textContent = fmt$(item.currentBid);
   const countEl = document.getElementById(`count-${item.id}`);
-  if (countEl) countEl.textContent = item.bidCount;
+  if (countEl) countEl.textContent = item.bidCount + ' bids';
   updateBidStatus(item);
 
   // Flash BID NOW button if watchlisted and closing in < 15 seconds
