@@ -1079,7 +1079,7 @@ function simBidOnItem(item) {
   updateTile(item);
 
   if (extended && V2_RESHUFFLE) renderGrid();
-  if (extended) showToast(`LOT #${item.lotNum} — New bid! Auto extended`, 'purple');
+  if (extended && (item.watchlisted || item.userBid)) showToast(`LOT #${item.lotNum} — New bid! Auto extended`, 'purple');
 }
 
 function simulateActivity() {
