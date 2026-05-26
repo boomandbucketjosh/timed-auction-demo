@@ -1150,9 +1150,10 @@ function showToast(msg, type = 'orange') {
 renderGrid();
 setInterval(tick, 1000);
 
-(function scheduleActivity() {
-  setTimeout(() => { simulateActivity(); scheduleActivity(); }, 1000 + Math.random() * 2000);
-})();
+setTimeout(function scheduleActivity() {
+  simulateActivity();
+  setTimeout(scheduleActivity, 1000 + Math.random() * 2000);
+}, 6000);
 
 // Version badge
 const _v = document.querySelector('meta[name="build-version"]');
