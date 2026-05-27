@@ -551,6 +551,35 @@
   .auction-bar { padding-left: 24px; padding-right: 24px; }
   .legend-bar  { padding-left: 24px; padding-right: 24px; }
   .grid-container { padding: 10px 24px 40px; max-width: 1680px; margin: 0 auto; }
+
+  /* ── SECTIONS ── */
+  .auction-section { margin-bottom: 32px; }
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 10px 0 10px;
+    border-bottom: 2px solid var(--card-border);
+    margin-bottom: 12px;
+  }
+  .section-header--hot {
+    border-bottom-color: var(--orange);
+  }
+  .section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .section-header--hot .section-title {
+    color: var(--orange);
+  }
+  .section-count {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
 </style>
 </head>
 <body>
@@ -618,11 +647,24 @@
 
 <!-- GRID -->
 <div class="grid-container">
-  <div class="grid" id="auction-grid">
-    <div class="empty-state" id="empty-state">
-      All lots have sold. Auction complete.
+
+  <div class="auction-section" id="section-hot">
+    <div class="section-header section-header--hot">
+      <span class="section-title">On the Block</span>
+      <span class="section-count" id="hot-count"></span>
     </div>
+    <div class="grid" id="grid-hot"></div>
   </div>
+
+  <div class="auction-section" id="section-upcoming">
+    <div class="section-header section-header--upcoming">
+      <span class="section-title">Upcoming Items</span>
+      <span class="section-count" id="upcoming-count"></span>
+    </div>
+    <div class="grid" id="grid-upcoming"></div>
+  </div>
+
+  <div class="empty-state" id="empty-state">All lots have sold. Auction complete.</div>
 </div>
 
 <!-- TOASTS -->
@@ -852,33 +894,42 @@ function buildTile(item) {
 }
 
 function renderGrid() {
-  const grid = document.getElementById('auction-grid');
-  const emptyState = document.getElementById('empty-state');
+  const hotGrid      = document.getElementById('grid-hot');
+  const upcomingGrid = document.getElementById('grid-upcoming');
+  const emptyState   = document.getElementById('empty-state');
+  const now = Date.now();
+
   const active = items.filter(i => i.status === 'active')
-    .sort((a, b) => V2_RESHUFFLE
-      ? a.closeTime - b.closeTime
-      : a.originalClose - b.originalClose);
+    .sort((a, b) => a.closeTime - b.closeTime);
 
-  // Remove tiles for items no longer in active list (already sold & faded)
-  const existingIds = new Set(Array.from(grid.querySelectorAll('.tile')).map(el => Number(el.dataset.id)));
-  const activeIds = new Set(active.map(i => i.id));
+  // Remove tiles for sold items
+  for (const el of document.querySelectorAll('.tile')) {
+    if (!active.find(i => i.id === Number(el.dataset.id))) el.remove();
+  }
 
-  // Add missing tiles
+  let hotOrder = 0, upcomingOrder = 0;
   for (const item of active) {
-    if (!existingIds.has(item.id)) {
-      const el = buildTile(item);
-      grid.appendChild(el);
+    const secsLeft = Math.max(0, Math.ceil((item.closeTime - now) / 1000));
+    const targetGrid = secsLeft <= 60 ? hotGrid : upcomingGrid;
+
+    let tile = document.getElementById(`tile-${item.id}`);
+    if (!tile) {
+      tile = buildTile(item);
+      targetGrid.appendChild(tile);
+    } else if (tile.parentElement !== targetGrid) {
+      targetGrid.appendChild(tile);
     }
+
+    tile.style.order = secsLeft <= 60 ? hotOrder++ : upcomingOrder++;
   }
 
-  // Reorder tiles to match sorted order
-  for (let i = 0; i < active.length; i++) {
-    const item = active[i];
-    const el = document.getElementById(`tile-${item.id}`);
-    if (el) {
-      el.style.order = i;
-    }
-  }
+  const hotCount      = active.filter(i => Math.ceil((i.closeTime - now) / 1000) <= 60).length;
+  const upcomingCount = active.length - hotCount;
+
+  document.getElementById('hot-count').textContent      = `${hotCount} lot${hotCount !== 1 ? 's' : ''}`;
+  document.getElementById('upcoming-count').textContent = `${upcomingCount} lot${upcomingCount !== 1 ? 's' : ''}`;
+  document.getElementById('section-hot').style.display      = hotCount > 0      ? '' : 'none';
+  document.getElementById('section-upcoming').style.display = upcomingCount > 0 ? '' : 'none';
 
   emptyState.classList.toggle('visible', active.length === 0);
 }
@@ -1109,19 +1160,23 @@ function tick() {
 
     const msLeft = item.closeTime - now;
 
-    // One full second past 0:00 → sell
     if (msLeft <= -1000) {
       sellItem(item);
       needsReorder = true;
       continue;
     }
 
-    // Clamp display to 0 so it shows 0:00 for that final second
     const secsLeft = Math.max(0, Math.ceil(msLeft / 1000));
     updateTile(item, secsLeft);
+
+    // Check if this item just crossed into "On the Block"
+    const tile = document.getElementById(`tile-${item.id}`);
+    if (tile && secsLeft <= 60 && tile.parentElement && tile.parentElement.id === 'grid-upcoming') {
+      needsReorder = true;
+    }
   }
 
-  if (needsReorder) renderGrid();
+  renderGrid();
 }
 
 // ── TOASTS ───────────────────────────────────────────────────────────────────
