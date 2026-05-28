@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Heavy Equipment Auction — LIVE</title>
 <meta name="build-version" content="1.0.0">
-<link rel="stylesheet" href="shared/tile.css">
+<link rel="stylesheet" href="shared/tile.css?v=5">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -336,7 +336,7 @@
 <!-- VERSION -->
 <div id="version-badge"></div>
 
-<script src="shared/tile.js"></script>
+<script src="shared/tile.js?v=3"></script>
 <script>
 // ── FEATURE FLAGS ────────────────────────────────────────────────────────────
 // v2: re-sort the grid after an auto-extension (true = reshuffle, false = stay put)
@@ -622,15 +622,14 @@ function placeBid(itemId) {
     extended = true;
   }
 
-  // Flash button
-  const btn = document.getElementById(`btn-${item.id}`);
-  if (btn) {
-    btn.classList.add('flash');
-    btn.textContent = 'BID PLACED!';
-    setTimeout(() => {
-      btn.classList.remove('flash');
-      btn.innerHTML = 'BID NOW &rarr;';
-    }, 1500);
+  // Black overlay with BID PLACED text
+  // Strip the extend flash so it doesn't darken the overlay via CSS filter
+  const bidTile = document.getElementById(`tile-${item.id}`);
+  if (bidTile) bidTile.classList.remove('extending');
+  const bidOverlay = document.getElementById(`bid-overlay-${item.id}`);
+  if (bidOverlay) {
+    bidOverlay.classList.add('visible');
+    setTimeout(() => bidOverlay.classList.remove('visible'), 4000);
   }
 
   updateTile(item);

@@ -106,7 +106,7 @@
   display: none;
   align-items: center;
   gap: 4px;
-  z-index: 2;
+  z-index: 13;
 }
 .extended-badge.visible { display: flex; }
 
@@ -125,6 +125,37 @@
 .sold-overlay.visible { display: flex; }
 .sold-text  { font-size: 34px; font-weight: 900; color: #4CAF50; letter-spacing: 4px; line-height: 1; }
 .sold-price { font-size: 20px; font-weight: 700; color: #fff; margin-top: 5px; }
+
+/* bid placed overlay — sits on .tile directly so it covers the whole card */
+@keyframes bidPlacedFade {
+  0%,  80% { opacity: 1; }
+  100%      { opacity: 0; }
+}
+.bid-placed-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 12;
+  border-radius: 6px;
+  pointer-events: none;
+}
+.bid-placed-overlay.visible {
+  display: flex;
+  animation: bidPlacedFade 4s ease-in forwards;
+}
+.bid-placed-text {
+  font-size: 28px;
+  font-weight: 900;
+  color: #4CAF50;
+  letter-spacing: 3px;
+  line-height: 1;
+  text-align: center;
+  width: 100%;
+}
 
 /* watchlist star */
 .watch-btn {

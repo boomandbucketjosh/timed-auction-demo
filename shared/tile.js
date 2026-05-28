@@ -77,6 +77,9 @@ function buildTile(item) {
         <div class="sold-price">${fmt$(item.currentBid)}</div>
       </div>
     </div>
+    <div class="bid-placed-overlay" id="bid-overlay-${item.id}">
+      <div class="bid-placed-text">BID PLACED</div>
+    </div>
     <div class="tile-body">
       <div class="tile-lot">LOT #${item.lotNum}</div>
       <div class="tile-name">${item.year} ${item.make} ${item.model} ${item.type}</div>
