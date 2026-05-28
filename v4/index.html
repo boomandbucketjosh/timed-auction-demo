@@ -262,6 +262,10 @@
   }
   .tile.entering { animation: tileIn 0.5s ease-out forwards; }
 
+  /* Hide timer + progress bar for items sitting in the queue */
+  .tile-upcoming .timer-row,
+  .tile-upcoming .progress-wrap { display: none; }
+
   /* ── PAGE MAX-WIDTH ── */
   .header-toolbar { max-width: 1680px; margin: 0 auto; padding-left: 24px; padding-right: 24px; }
   .header-nav-inner { max-width: 1680px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
@@ -392,6 +396,12 @@
 
 <script src="../shared/tile.js"></script>
 <script>
+// Override progress bar to treat 1:20 (80s) as the full span for On the Block
+function progressPct(item) {
+  const remaining = item.closeTime - Date.now();
+  return Math.max(0, Math.min(100, (remaining / (80 * 1000)) * 100));
+}
+
 // ── DATA GENERATION ──────────────────────────────────────────────────────────
 
 const THUMBNAILS = [
@@ -531,10 +541,13 @@ function renderGrid() {
     if (!tile) tile = buildTile(item);
 
     if (entering) {
+      // Reset timer to 1:20 on entry into On the Block (10s × 8 slots)
+      item.closeTime = Date.now() + 80 * 1000;
       // Reuse the freed slot from the item that just sold, else fall back to idx
       const slot = freeHotSlots.length > 0 ? freeHotSlots.shift() : idx;
       itemHotSlot.set(item.id, slot);
       tile.style.order = slot;
+      tile.classList.remove('tile-upcoming');
     }
     // Existing items: order was already set — don't touch it
 
@@ -549,12 +562,13 @@ function renderGrid() {
   hotItemIds.clear();
   newHotIds.forEach(id => hotItemIds.add(id));
 
-  // Upcoming grid
+  // Upcoming grid — mark tiles so timer/progress are hidden
   for (let idx = 0; idx < upcomingItems.length; idx++) {
     const item = upcomingItems[idx];
     let tile = document.getElementById(`tile-${item.id}`);
     if (!tile) tile = buildTile(item);
     if (tile.parentElement !== upcomingGrid) upcomingGrid.appendChild(tile);
+    tile.classList.add('tile-upcoming');
     tile.style.order = idx;
   }
 
@@ -583,7 +597,8 @@ function updateTile(item, secsLeft) {
   const tile = document.getElementById(`tile-${item.id}`);
   if (!tile) return;
 
-  tile.className = `tile state-${state}${item.watchlisted ? ' watchlisted' : ''}`;
+  const isHot = hotItemIds.has(item.id);
+  tile.className = `tile state-${state}${item.watchlisted ? ' watchlisted' : ''}${isHot ? '' : ' tile-upcoming'}`;
 
   // Update timer
   const timerEl = document.getElementById(`timer-${item.id}`);
@@ -606,13 +621,13 @@ function updateTile(item, secsLeft) {
 
   const btnEl = document.getElementById(`btn-${item.id}`);
   if (btnEl) {
-    if (secsLeft <= 0) {
+    if (isHot && secsLeft <= 0) {
       btnEl.classList.remove('urgent-flash', 'flash');
       btnEl.classList.add('sold');
       btnEl.disabled = true;
       btnEl.textContent = 'SOLD';
     } else if (!btnEl.classList.contains('flash')) {
-      btnEl.classList.toggle('urgent-flash', secsLeft < 15);
+      btnEl.classList.toggle('urgent-flash', isHot && secsLeft < 15);
     }
   }
 }
@@ -804,14 +819,14 @@ function tick() {
     if (item.status !== 'active') continue;
 
     const msLeft = item.closeTime - now;
-
-    if (msLeft <= -1000) {
-      sellItem(item);
-      continue;
-    }
-
     const secsLeft = Math.max(0, Math.ceil(msLeft / 1000));
+
+    // Always update tile first so SOLD button and overlay trigger on the same tick
     updateTile(item, secsLeft);
+
+    if (msLeft <= 0 && hotItemIds.has(item.id)) {
+      sellItem(item);
+    }
   }
 }
 
