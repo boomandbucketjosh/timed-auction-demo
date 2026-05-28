@@ -303,3 +303,10 @@
 .bid-btn.flash  { background: #388E3C; color: #fff; }
 @keyframes btnUrgentFlash { 0%, 100% { opacity: 1; } 50% { opacity: 0.1; } }
 .bid-btn.urgent-flash { animation: btnUrgentFlash 1.4s ease-in-out infinite; }
+.bid-btn.sold, .bid-btn:disabled {
+  background: #E0E0E0;
+  color: #9E9E9E;
+  cursor: default;
+  animation: none;
+  transform: none;
+}

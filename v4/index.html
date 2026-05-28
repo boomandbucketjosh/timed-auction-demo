@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Heavy Equipment Auction — LIVE</title>
 <meta name="build-version" content="1.0.0">
-<link rel="stylesheet" href="../shared/tile.css">
+<link rel="stylesheet" href="../shared/tile.css?v=6">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -507,6 +507,9 @@ function renderGrid() {
   const upcomingGrid = document.getElementById('grid-upcoming');
   const emptyState   = document.getElementById('empty-state');
 
+  // Clear any lingering placeholders from simultaneous sells before rebuilding
+  hotGrid.querySelectorAll('.slot-placeholder').forEach(ph => ph.remove());
+
   // Hot = 8 soonest by original close time (stable — extensions don't reorder)
   const active = items.filter(i => i.status === 'active')
     .sort((a, b) => a.originalClose - b.originalClose);
@@ -601,10 +604,16 @@ function updateTile(item, secsLeft) {
   if (countEl) countEl.textContent = item.bidCount + ' bids';
   updateBidStatus(item);
 
-  // Flash BID NOW button if watchlisted and closing in < 15 seconds
   const btnEl = document.getElementById(`btn-${item.id}`);
-  if (btnEl && !btnEl.classList.contains('flash')) {
-    btnEl.classList.toggle('urgent-flash', secsLeft < 15);
+  if (btnEl) {
+    if (secsLeft <= 0) {
+      btnEl.classList.remove('urgent-flash', 'flash');
+      btnEl.classList.add('sold');
+      btnEl.disabled = true;
+      btnEl.textContent = 'SOLD';
+    } else if (!btnEl.classList.contains('flash')) {
+      btnEl.classList.toggle('urgent-flash', secsLeft < 15);
+    }
   }
 }
 
@@ -657,7 +666,7 @@ function sellItem(item) {
         ph.style.order = tileOrder;
         hotGrid.appendChild(ph);
 
-        setTimeout(() => { ph.remove(); renderGrid(); }, 2000);
+        setTimeout(() => { if (ph.parentElement) { ph.remove(); renderGrid(); } }, 2000);
       } else {
         renderGrid();
       }
@@ -724,7 +733,7 @@ function placeBid(itemId) {
     setTimeout(() => {
       btn.classList.remove('flash');
       btn.innerHTML = 'BID NOW &rarr;';
-    }, 1500);
+    }, 2500);
   }
 
   updateTile(item);

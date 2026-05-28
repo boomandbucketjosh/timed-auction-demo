@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Heavy Equipment Auction — LIVE</title>
 <meta name="build-version" content="1.0.0">
-<link rel="stylesheet" href="../shared/tile.css">
+<link rel="stylesheet" href="../shared/tile.css?v=6">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -573,10 +573,16 @@ function updateTile(item, secsLeft) {
   if (countEl) countEl.textContent = item.bidCount + ' bids';
   updateBidStatus(item);
 
-  // Flash BID NOW button if watchlisted and closing in < 15 seconds
   const btnEl = document.getElementById(`btn-${item.id}`);
-  if (btnEl && !btnEl.classList.contains('flash')) {
-    btnEl.classList.toggle('urgent-flash', item.watchlisted && secsLeft < 30);
+  if (btnEl) {
+    if (secsLeft <= 0) {
+      btnEl.classList.remove('urgent-flash', 'flash');
+      btnEl.classList.add('sold');
+      btnEl.disabled = true;
+      btnEl.textContent = 'SOLD';
+    } else if (!btnEl.classList.contains('flash')) {
+      btnEl.classList.toggle('urgent-flash', item.watchlisted && secsLeft < 30);
+    }
   }
 }
 
