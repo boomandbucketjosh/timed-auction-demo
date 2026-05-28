@@ -538,8 +538,9 @@ function renderGrid() {
     const item = hotItems[idx];
     const entering = !hotItemIds.has(item.id);
 
-    // Reset closeTime BEFORE buildTile so the initial progress bar renders correctly
-    if (entering) item.closeTime = Date.now() + 80 * 1000;
+    // Only reset to 1:20 for items entering after a sale (freeHotSlots non-empty).
+    // On initial load freeHotSlots is empty, so the natural 10s stagger is preserved.
+    if (entering && freeHotSlots.length > 0) item.closeTime = Date.now() + 80 * 1000;
 
     let tile = document.getElementById(`tile-${item.id}`);
     if (!tile) tile = buildTile(item);
