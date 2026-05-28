@@ -604,7 +604,7 @@ function updateTile(item, secsLeft) {
   // Flash BID NOW button if watchlisted and closing in < 15 seconds
   const btnEl = document.getElementById(`btn-${item.id}`);
   if (btnEl && !btnEl.classList.contains('flash')) {
-    btnEl.classList.toggle('urgent-flash', item.watchlisted && secsLeft < 30);
+    btnEl.classList.toggle('urgent-flash', secsLeft < 15);
   }
 }
 

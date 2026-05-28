@@ -301,5 +301,5 @@
 .bid-btn:hover  { background: #E65100; }
 .bid-btn:active { transform: scale(0.98); }
 .bid-btn.flash  { background: #388E3C; color: #fff; }
-@keyframes btnUrgentFlash { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@keyframes btnUrgentFlash { 0%, 100% { opacity: 1; } 50% { opacity: 0.1; } }
 .bid-btn.urgent-flash { animation: btnUrgentFlash 1.4s ease-in-out infinite; }
