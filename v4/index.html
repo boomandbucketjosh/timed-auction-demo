@@ -508,6 +508,7 @@ let totalSales = 0;
 const hotItemIds  = new Set();   // item ids currently in the hot grid
 const itemHotSlot = new Map();   // itemId → fixed slot index (0–7)
 const freeHotSlots = [];         // slot indices freed by sold items, awaiting reuse
+const sellGen     = new Map();   // itemId → generation; invalidates stale sell timeouts on tab resume
 
 // ── RENDER ───────────────────────────────────────────────────────────────────
 
@@ -664,6 +665,9 @@ function sellItem(item) {
   soldCount++;
   totalSales += item.currentBid;
 
+  const gen = (sellGen.get(item.id) || 0) + 1;
+  sellGen.set(item.id, gen);
+
   const overlay = document.getElementById(`overlay-${item.id}`);
   if (overlay) {
     overlay.querySelector('.sold-price').textContent = fmt$(item.currentBid);
@@ -675,12 +679,13 @@ function sellItem(item) {
   const tileOrder = tile ? parseInt(tile.style.order, 10) || 0 : 0;
 
   setTimeout(() => {
+    if (sellGen.get(item.id) !== gen) return; // invalidated by tab-resume cleanup
     if (tile) tile.classList.add('selling');
 
     setTimeout(() => {
+      if (sellGen.get(item.id) !== gen) return;
       if (tile) tile.remove();
       hotItemIds.delete(item.id);
-      // Free this item's slot so the next entrant can inherit it
       const slot = itemHotSlot.get(item.id);
       if (slot !== undefined) { freeHotSlots.push(slot); itemHotSlot.delete(item.id); }
 
@@ -691,7 +696,6 @@ function sellItem(item) {
       }
 
       if (wasInHot) {
-        // White placeholder holds the slot for 2s, then new item fades in
         const hotGrid = document.getElementById('grid-hot');
         const ph = document.createElement('div');
         ph.className = 'slot-placeholder';
@@ -867,6 +871,28 @@ setTimeout(function scheduleActivity() {
   simulateActivity();
   setTimeout(scheduleActivity, 2000 + Math.random() * 3000);
 }, 6000);
+
+// Tab visibility — instantly resolve any sell animations throttled while tab was hidden
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  // Invalidate all pending sell timeouts
+  for (const item of items) {
+    if (item.status === 'sold') sellGen.set(item.id, (sellGen.get(item.id) || 0) + 1);
+  }
+  // Remove any tiles/placeholders still in DOM from stuck sell sequences
+  document.querySelectorAll('.tile').forEach(el => {
+    const id = Number(el.dataset.id);
+    const item = items.find(i => i.id === id);
+    if (!item || item.status === 'sold') {
+      hotItemIds.delete(id);
+      const slot = itemHotSlot.get(id);
+      if (slot !== undefined) { freeHotSlots.push(slot); itemHotSlot.delete(id); }
+      el.remove();
+    }
+  });
+  document.querySelectorAll('.slot-placeholder').forEach(ph => ph.remove());
+  renderGrid();
+});
 
 // Version badge
 const _v = document.querySelector('meta[name="build-version"]');
