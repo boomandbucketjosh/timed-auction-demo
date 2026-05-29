@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Heavy Equipment Auction — LIVE</title>
 <meta name="build-version" content="1.0.0">
-<link rel="stylesheet" href="../shared/tile.css?v=6">
+<link rel="stylesheet" href="../shared/tile.css?v=7">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -394,7 +394,7 @@
 <!-- VERSION -->
 <div id="version-badge"></div>
 
-<script src="../shared/tile.js"></script>
+<script src="../shared/tile.js?v=4"></script>
 <script>
 // Override progress bar to treat 1:20 (80s) as the full span for On the Block
 function progressPct(item) {
@@ -491,6 +491,7 @@ function generateItems() {
       userWinning: false,
       simCap,
       hours,
+      url: 'https://www.rbauction.com/pdp/2005-terex-rt555-1-55-ton-4x4x4-rough-terrain-crane/15154801',
     });
   }
 
@@ -511,6 +512,19 @@ const freeHotSlots = [];         // slot indices freed by sold items, awaiting r
 // ── RENDER ───────────────────────────────────────────────────────────────────
 
 const HOT_SIZE = 8;
+
+// Returns a close time for a newly entering item: starts at 1:20 from now,
+// then bumps +10s until no existing hot item closes within ±10s of it.
+function entryCloseTime() {
+  const now = Date.now();
+  let target = now + 80 * 1000;
+  const hotItems = items.filter(i => i.status === 'active' && hotItemIds.has(i.id));
+  for (let i = 0; i < 20; i++) {
+    if (!hotItems.some(hi => Math.abs(hi.closeTime - target) < 10 * 1000)) break;
+    target += 10 * 1000;
+  }
+  return target;
+}
 
 function renderGrid() {
   const hotGrid      = document.getElementById('grid-hot');
@@ -538,9 +552,9 @@ function renderGrid() {
     const item = hotItems[idx];
     const entering = !hotItemIds.has(item.id);
 
-    // Only reset to 1:20 for items entering after a sale (freeHotSlots non-empty).
+    // Only reset timer for items entering after a sale (freeHotSlots non-empty).
     // On initial load freeHotSlots is empty, so the natural 10s stagger is preserved.
-    if (entering && freeHotSlots.length > 0) item.closeTime = Date.now() + 80 * 1000;
+    if (entering && freeHotSlots.length > 0) item.closeTime = entryCloseTime();
 
     let tile = document.getElementById(`tile-${item.id}`);
     if (!tile) tile = buildTile(item);

@@ -50,6 +50,7 @@ function buildTile(item) {
   el.dataset.id = item.id;
 
   el.innerHTML = `
+    ${item.url ? `<a class="tile-link" href="${item.url}" target="_blank" rel="noopener noreferrer"></a>` : ''}
     <div class="tile-img-wrap">
       <img class="tile-img" src="${item.thumbnail}"
            style="background:${item.bgColor}"
@@ -81,7 +82,7 @@ function buildTile(item) {
       <div class="bid-placed-text">BID PLACED</div>
     </div>
     <div class="tile-body">
-      <div class="tile-lot">LOT #${item.lotNum}</div>
+      <div class="tile-lot">LOT #${item.lotNum}${item.url ? `<svg class="tile-ext-icon" width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>` : ''}</div>
       <div class="tile-name">${item.year} ${item.make} ${item.model} ${item.type}</div>
       <div class="tile-info-row">
         <div class="tile-location">

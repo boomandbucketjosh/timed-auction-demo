@@ -280,6 +280,26 @@
 .state-urgent   .progress-fill { background: var(--orange); }
 .state-critical .progress-fill { background: var(--red); }
 
+/* full-card link overlay — sits behind interactive elements */
+.tile-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* external link icon next to lot number */
+.tile-ext-icon {
+  display: inline-block;
+  vertical-align: middle;
+  color: var(--muted);
+  margin-left: 3px;
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+.tile:hover .tile-ext-icon { opacity: 1; color: var(--orange); }
+
 /* bid button */
 .bid-btn {
   width: 100%;
@@ -297,6 +317,8 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
+  position: relative;
+  z-index: 2;
 }
 .bid-btn:hover  { background: #E65100; }
 .bid-btn:active { transform: scale(0.98); }
