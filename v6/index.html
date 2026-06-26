@@ -211,6 +211,9 @@
   /* v6: match the "BID PLACED" overlay to the same 80% black (shared is 92%) */
   .bid-placed-overlay { background: rgba(0,0,0,0.8); }
 
+  /* v6: fade newly shown cards in */
+  @keyframes cardFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
   /* ── TOASTS ── */
   .toast-container {
     position: fixed;
@@ -480,9 +483,9 @@
 // ── FEATURE FLAGS ────────────────────────────────────────────────────────────
 // re-sort the grid after an auto-extension (true = reshuffle, false = stay put)
 const V2_RESHUFFLE = true;
-// fraction of the viewport that the card region is allowed to occupy before
-// remaining lots spill into compact rows
-const FOLD_FRACTION = 0.8;
+// "On the Block" shows this many rows of cards by default; lots beyond it wait
+// in the Upcoming rows until their turn comes
+const ON_THE_BLOCK_ROWS = 1;
 
 // ── DATA GENERATION ──────────────────────────────────────────────────────────
 
@@ -586,6 +589,8 @@ function generateItems() {
 let items = generateItems();
 let soldCount = 0;
 let totalSales = 0;
+// ids that have been shown as a card — once carded they never demote back to a row
+let carded = new Set();
 
 // ── RENDER ───────────────────────────────────────────────────────────────────
 
@@ -593,6 +598,57 @@ let totalSales = 0;
 function countColumns(grid) {
   const tmpl = getComputedStyle(grid).gridTemplateColumns;
   return tmpl.split(' ').filter(Boolean).length || 1;
+}
+
+// v6 progress bar: full until the last 60s, then drains over the final minute
+// (overrides shared/tile.js's slow 17-minute drain).
+function progressBar(item) {
+  const secsLeft = (item.closeTime - Date.now()) / 1000;
+  if (secsLeft >= 60) return 100;
+  if (secsLeft <= 0)  return 0;
+  return (secsLeft / 60) * 100;
+}
+
+// Fade a freshly shown card in, and seed its progress bar without a sweep.
+function fadeInCard(tile, item) {
+  const prog = tile.querySelector('.progress-fill');
+  if (prog) {
+    prog.style.transition = 'none';
+    prog.style.width = progressBar(item) + '%';
+    requestAnimationFrame(() => { prog.style.transition = ''; });
+  }
+  tile.style.animation = 'cardFadeIn 0.4s ease-out';
+  tile.addEventListener('animationend', function done(e) {
+    if (e.animationName !== 'cardFadeIn') return;
+    tile.style.animation = '';
+    tile.removeEventListener('animationend', done);
+  });
+}
+
+// Slide a freshly promoted card in from the right by one slot — matches the FLIP
+// distance/easing so it reads as part of the same reshuffle.
+function slideInCard(tile, item) {
+  const prog = tile.querySelector('.progress-fill');
+  if (prog) { prog.style.transition = 'none'; prog.style.width = progressBar(item) + '%'; }
+  const slot = tile.getBoundingClientRect().width + 8; // card width + grid gap
+  tile.style.transition = 'none';
+  tile.style.transform  = `translateX(${slot}px)`;
+  tile.style.opacity    = '0';
+  tile.style.zIndex     = '20';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      tile.style.transition = 'transform 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease-out';
+      tile.style.transform  = '';
+      tile.style.opacity    = '';
+      if (prog) prog.style.transition = '';
+      tile.addEventListener('transitionend', function done(e) {
+        if (e.propertyName !== 'transform') return;
+        tile.style.transition = '';
+        tile.style.zIndex     = '';
+        tile.removeEventListener('transitionend', done);
+      });
+    });
+  });
 }
 
 // Compact row for upcoming (past-the-fold) lots.
@@ -619,8 +675,12 @@ function fmtWindow(ts) {
   return `${f(a)} - ${f(b)}`;
 }
 
-// animateId: the specific item.id that was extended — only that tile gets the FLIP animation.
-function renderGrid(animateId = null) {
+// animate: id (or list of ids) that just extended — those cards ride above the
+// rest as they travel. Every moved card glides regardless; this only sets z-index.
+function renderGrid(animate = null) {
+  const animateIds = animate == null
+    ? new Set()
+    : new Set((Array.isArray(animate) ? animate : [animate]).map(String));
   const watchGrid = document.getElementById('grid-watchlist');
   const mainGrid  = document.getElementById('grid-main');
   const rowsBody  = document.getElementById('rows-body');
@@ -636,32 +696,42 @@ function renderGrid(animateId = null) {
     before.set(el.dataset.id, el.getBoundingClientRect());
   });
 
+  // freshly promoted On-the-Block cards, animated in after the reflow
+  const newCards = [];
+
   // ── 1. Watchlist cards (always shown in full) ──
   watch.forEach((item, i) => {
     let tile = document.getElementById(`tile-${item.id}`);
-    if (!tile) { tile = buildTile(item); watchGrid.appendChild(tile); }
+    if (!tile) { tile = buildTile(item); watchGrid.appendChild(tile); fadeInCard(tile, item); }
     else if (tile.parentElement !== watchGrid) { watchGrid.appendChild(tile); }
     tile.style.order = i;
   });
 
-  // ── 2. Capacity: how many full card rows fit above FOLD_FRACTION of the fold ──
-  const cols  = countColumns(mainGrid);
-  const probe = document.querySelector('.tile');
-  const rowH  = (probe ? probe.offsetHeight : 224) + 8; // tile height + grid gap
-  const absTop = mainGrid.getBoundingClientRect().top + window.scrollY;
-  const avail  = window.innerHeight * FOLD_FRACTION - absTop;
-  const rowsFit = Math.max(1, Math.round(avail / rowH)); // round to nearest full row
-  const cap = rowsFit * cols;
-
-  const cardItems = mainAll.slice(0, cap);
-  const rowItems  = mainAll.slice(cap);
+  // ── 2. Split into cards vs rows ──
+  // Default to ON_THE_BLOCK_ROWS row(s) of cards. Anything already shown as a card
+  // stays a card (a reshuffle can briefly push the block past one row); the rest
+  // wait below as Upcoming rows.
+  const cols = countColumns(mainGrid);
+  const minCards = Math.max(1, ON_THE_BLOCK_ROWS * cols);
+  const cardItems = [];
+  const rowItems  = [];
+  for (const item of mainAll) {
+    if (carded.has(item.id)) {
+      cardItems.push(item);
+    } else if (cardItems.length < minCards) {
+      carded.add(item.id);
+      cardItems.push(item);
+    } else {
+      rowItems.push(item);
+    }
+  }
 
   // ── 3. On-the-block cards ──
   cardItems.forEach((item, i) => {
     const oldRow = document.getElementById(`row-${item.id}`);
     if (oldRow) oldRow.remove();
     let tile = document.getElementById(`tile-${item.id}`);
-    if (!tile) { tile = buildTile(item); mainGrid.appendChild(tile); }
+    if (!tile) { tile = buildTile(item); mainGrid.appendChild(tile); newCards.push({ el: tile, item }); }
     else if (tile.parentElement !== mainGrid) { mainGrid.appendChild(tile); }
     tile.style.order = i;
   });
@@ -704,8 +774,8 @@ function renderGrid(animateId = null) {
     if (dx === 0 && dy === 0) return;
     el.style.transition = 'none';
     el.style.transform  = `translate(${dx}px, ${dy}px)`;
-    // the extended card rides above the rest as it travels
-    if (String(animateId) === el.dataset.id) el.style.zIndex = '20';
+    // extended cards ride above the rest as they travel
+    if (animateIds.has(el.dataset.id)) el.style.zIndex = '20';
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         el.style.transition = 'transform 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
@@ -719,6 +789,14 @@ function renderGrid(animateId = null) {
       });
     });
   });
+
+  // ── Entrance for freshly shown cards ──
+  // If there were already cards on screen, a new one is a promotion → slide it in
+  // from the right alongside the FLIP. On first paint (nothing yet) just fade.
+  for (const { el, item } of newCards) {
+    if (before.size > 0) slideInCard(el, item);
+    else fadeInCard(el, item);
+  }
 }
 
 function updateBidStatus(item) {
@@ -736,7 +814,7 @@ function updateTile(item, secsLeft) {
   if (rowBid) rowBid.textContent = fmt$(item.currentBid);
 
   const state = timerState(secsLeft);
-  const pct = progressPct(item);
+  const pct = progressBar(item);
 
   const tile = document.getElementById(`tile-${item.id}`);
   if (!tile) return;
@@ -900,7 +978,7 @@ function placeBid(itemId) {
 // ── SIMULATION ───────────────────────────────────────────────────────────────
 
 function simBidOnItem(item) {
-  if (item.currentBid >= item.simCap) return;
+  if (item.currentBid >= item.simCap) return false;
   const secsLeft = (item.closeTime - Date.now()) / 1000;
   const increment = getBidIncrement(item.currentBid);
   item.currentBid += increment;
@@ -920,8 +998,8 @@ function simBidOnItem(item) {
 
   updateTile(item);
 
-  if (extended && V2_RESHUFFLE) renderGrid(item.id);
   if (extended && (item.watchlisted || item.userBid)) showToast(`LOT #${item.lotNum} — New bid! Auto extended`, 'purple');
+  return extended;
 }
 
 function simulateActivity() {
@@ -945,7 +1023,12 @@ function simulateActivity() {
   for (let i = 0; i < count * 5 && picked.size < count; i++) {
     picked.add(pool[Math.floor(Math.random() * pool.length)]);
   }
-  for (const item of picked) simBidOnItem(item);
+  // Batch the whole cycle into a single reshuffle so the FLIPs don't stack.
+  const extendedIds = [];
+  for (const item of picked) {
+    if (simBidOnItem(item) && V2_RESHUFFLE) extendedIds.push(item.id);
+  }
+  if (extendedIds.length) renderGrid(extendedIds);
 }
 
 // ── TICK ─────────────────────────────────────────────────────────────────────
