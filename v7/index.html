@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Heavy Equipment Auction — LIVE</title>
+<meta name="build-version" content="7.0.0">
+<link rel="stylesheet" href="../shared/tile.css?v=7">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* variables, grid, and tile styles live in shared/tile.css */
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER (RB-style) ── */
+  .header {
+    background: #FFFFFF;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+
+  /* toolbar row */
+  .header-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(0,0,0,0.10);
+  }
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .header-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #2F3F51;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+  }
+  .header-icon-btn:hover { background: #F4F4F4; }
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+  .header-logo-text {
+    font-size: 17px;
+    font-weight: 900;
+    color: #000;
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+  }
+
+  /* search */
+  .header-search {
+    flex: 1;
+    max-width: 520px;
+  }
+  .header-search-wrap {
+    display: flex;
+    align-items: center;
+    border: 1px solid #CFCFCF;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .header-search-wrap:focus-within { border-color: var(--orange); box-shadow: 0 0 0 2px rgba(245,124,0,0.15); }
+  .header-search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--navy);
+    background: transparent;
+  }
+  .header-search-btn {
+    background: none;
+    border: none;
+    border-left: 1px solid #E7E7E7;
+    padding: 7px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+  }
+  .header-search-btn:hover { background: #F4F4F4; }
+
+  /* right nav */
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .header-nav-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    text-decoration: none;
+    color: rgba(0,0,0,0.87);
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .header-nav-link:hover { color: var(--orange); }
+  .header-nav-link svg { color: inherit; }
+  .header-avatar {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--navy);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .avatar-dot {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    width: 9px;
+    height: 9px;
+    background: var(--green);
+    border-radius: 50%;
+    border: 2px solid #fff;
+  }
+
+  /* bottom nav row */
+  .header-nav {
+    border-top: 1px solid rgba(0,0,0,0.10);
+  }
+  .header-nav-inner {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 0;
+  }
+  .header-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(0,0,0,0.87);
+    background: none;
+    border: none;
+    text-decoration: none;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+  }
+  .header-nav-item:hover { color: var(--orange); border-bottom-color: var(--orange); }
+  .header-nav-sell {
+    font-weight: 900;
+    font-size: 13px;
+  }
+
+  /* ── LIVE BADGE (used in header if needed) ── */
+  .live-badge {
+    background: var(--red);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 3px 7px;
+    border-radius: 3px;
+    animation: livePulse 2s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+  }
+
+
+  /* grid, tile, bid-btn — see shared/tile.css */
+
+  /* v6: keep 2 card columns on the smallest phones (shared/tile.css drops to 1) */
+  @media (max-width: 399px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* v6: extend flash dips to ~80% black instead of shared/tile.css's ~85% */
+  @keyframes extendFlash {
+    0%   { filter: grayscale(1) brightness(0.2); }
+    45%  { filter: grayscale(1) brightness(0.2); }
+    100% { filter: grayscale(0) brightness(1); }
+  }
+
+  /* v6: match the "BID PLACED" overlay to the same 80% black (shared is 92%) */
+  .bid-placed-overlay { background: rgba(0,0,0,0.8); }
+
+  /* v6: fade newly shown cards in */
+  @keyframes cardFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* v7: timer reads "Extended" until the final minute — calm, not a hot countdown */
+  .timer-display.is-extended {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+  }
+
+  /* ── TOASTS ── */
+  .toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    align-items: flex-end;
+    pointer-events: none;
+  }
+  .toast {
+    background: #FFFFFF;
+    border: 1px solid var(--card-border);
+    border-left: 3px solid var(--orange);
+    color: var(--navy);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 9px 13px;
+    border-radius: 5px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.12);
+    animation: toastIn 0.25s ease-out, toastOut 0.3s ease-in 2.7s forwards;
+    max-width: 270px;
+  }
+  .toast.toast-purple { border-left-color: var(--indigo); }
+  .toast.toast-green  { border-left-color: var(--green); }
+  @keyframes toastIn  { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(16px); } }
+
+  /* ── VERSION BADGE ── */
+  #version-badge {
+    position: fixed;
+    bottom: 8px;
+    left: 12px;
+    font-size: 10px;
+    color: #CFCFCF;
+    z-index: 999;
+    pointer-events: none;
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--muted);
+    font-size: 16px;
+    display: none;
+  }
+  .empty-state.visible { display: block; }
+
+  /* ── PAGE MAX-WIDTH ── */
+  .header-toolbar { max-width: 1680px; margin: 0 auto; padding-left: 24px; padding-right: 24px; }
+  .header-nav-inner { max-width: 1680px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+  .auction-bar { padding-left: 24px; padding-right: 24px; }
+  .legend-bar  { padding-left: 24px; padding-right: 24px; }
+  .grid-container { padding: 10px 24px 40px; max-width: 1680px; margin: 0 auto; }
+
+  /* ── SECTIONS (from v3) ── */
+  .auction-section { margin-bottom: 28px; }
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 10px 0 10px;
+    border-bottom: 2px solid var(--card-border);
+    margin-bottom: 12px;
+  }
+  .section-header--watchlist { border-bottom-color: var(--orange); }
+  .section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--navy);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .section-header--watchlist .section-title { color: var(--orange); }
+  .section-count {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .watchlist-empty {
+    display: none;
+    font-size: 12px;
+    color: var(--muted);
+    padding: 16px 0 4px;
+  }
+  .watchlist-empty.visible { display: block; }
+
+  /* ── UPCOMING ROWS (new in v6) ── */
+  .lot-table-wrap { overflow-x: auto; }
+  .lot-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .lot-table thead th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--card-border);
+    white-space: nowrap;
+    background: #FAFAFA;
+  }
+  .lot-table thead th.rc-bid { text-align: right; }
+  .lot-row {
+    border-bottom: 1px solid #EFEFEF;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .lot-row:hover { background: #FFF7EC; }
+  .lot-row td {
+    padding: 7px 12px;
+    color: var(--navy);
+    vertical-align: middle;
+  }
+  .lot-row .rc-time {
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .lot-row .rc-lot {
+    font-weight: 700;
+    color: var(--orange);
+    white-space: nowrap;
+  }
+  .lot-row .rc-desc {
+    font-weight: 600;
+    max-width: 420px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lot-row .rc-loc { color: var(--muted); white-space: nowrap; }
+  .lot-row .rc-bid {
+    text-align: right;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <!-- Top toolbar -->
+  <div class="header-toolbar">
+    <!-- Left: hamburger + logo -->
+    <div class="header-left">
+      <button class="header-icon-btn" aria-label="Menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+      </button>
+      <a href="#" class="header-logo">
+        <svg width="28" height="28" viewBox="0 0 40 40" fill="none">
+          <rect width="40" height="40" rx="4" fill="#F57C00"/>
+          <path d="M8 30V10h8c4.4 0 7 2.2 7 5.8 0 2.4-1.2 4.2-3.2 5.2L24 30h-5.5l-3.6-7.8H12.5V30H8zm4.5-11.2h3.2c1.8 0 2.8-.9 2.8-2.5s-1-2.4-2.8-2.4h-3.2v4.9z" fill="white"/>
+          <path d="M25 30V10h4.5v20H25z" fill="white"/>
+        </svg>
+        <span class="header-logo-text">Ritchie Bros.</span>
+      </a>
+    </div>
+
+    <!-- Center: search -->
+    <div class="header-search">
+      <div class="header-search-wrap">
+        <input class="header-search-input" type="text" placeholder="Search over 100,000 items" value="Construction">
+        <button class="header-search-btn" aria-label="Search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#808080"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right: nav icons -->
+    <div class="header-right">
+      <a href="#" class="header-nav-link">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="m6 2 .01 6L10 12l-3.99 4.01L6 22h12v-6l-4-4 4-3.99V2H6zm10 14.5V20H8v-3.5l4-4 4 4z"/></svg>
+        <span>Timed bids</span>
+      </a>
+      <a href="#" class="header-nav-link">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="m12 21.35-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        <span>Watchlist</span>
+      </a>
+      <button class="header-avatar" aria-label="Account">
+        <span>JM</span>
+        <span class="avatar-dot"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom nav -->
+  <div class="header-nav">
+    <div class="header-nav-inner">
+      <button class="header-nav-item">Browse by category <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg></button>
+      <button class="header-nav-item">Auctions <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg></button>
+      <button class="header-nav-item">How it works <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg></button>
+      <button class="header-nav-item">Services <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M16.59 8.59 12 13.17 7.41 8.59 6 10l6 6 6-6z"/></svg></button>
+      <a href="#" class="header-nav-item">Financing</a>
+      <a href="#" class="header-nav-item">Locations</a>
+      <a href="#" class="header-nav-item header-nav-sell">Sell now</a>
+    </div>
+  </div>
+</header>
+
+
+<!-- GRID -->
+<div class="grid-container">
+
+  <!-- Watchlist: always cards -->
+  <div class="auction-section" id="section-watchlist">
+    <div class="section-header section-header--watchlist">
+      <span class="section-title">Your Watchlist</span>
+      <span class="section-count" id="watchlist-count"></span>
+    </div>
+    <div class="grid" id="grid-watchlist"></div>
+    <div class="watchlist-empty" id="watchlist-empty">Star items below to track them here.</div>
+  </div>
+
+  <!-- On the Block: cards down to ~0.8 of the fold -->
+  <div class="auction-section" id="section-main">
+    <div class="section-header section-header--all">
+      <span class="section-title">On the Block</span>
+      <span class="section-count" id="main-count"></span>
+    </div>
+    <div class="grid" id="grid-main"></div>
+  </div>
+
+  <!-- Upcoming: everything past the fold, as compact rows -->
+  <div class="auction-section rows-section" id="section-upcoming">
+    <div class="section-header">
+      <span class="section-title">Upcoming Lots</span>
+      <span class="section-count" id="upcoming-count"></span>
+    </div>
+    <div class="lot-table-wrap">
+      <table class="lot-table">
+        <thead>
+          <tr>
+            <th class="rc-time">Auction Time</th>
+            <th class="rc-lot">Lot #</th>
+            <th class="rc-desc">Description</th>
+            <th class="rc-loc">Location</th>
+            <th class="rc-bid">Current Bid</th>
+          </tr>
+        </thead>
+        <tbody id="rows-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="empty-state" id="empty-state">All lots have sold. Auction complete.</div>
+</div>
+
+<!-- TOASTS -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- VERSION -->
+<div id="version-badge"></div>
+
+<script src="../shared/tile.js?v=4"></script>
+<script>
+// ── FEATURE FLAGS ────────────────────────────────────────────────────────────
+// re-sort the grid after an auto-extension (true = reshuffle, false = stay put)
+const V2_RESHUFFLE = true;
+// "On the Block" shows this many rows of cards by default; lots beyond it wait
+// in the Upcoming rows until their turn comes
+const ON_THE_BLOCK_ROWS = 1;
+
+// ── DATA GENERATION ──────────────────────────────────────────────────────────
+
+const THUMBNAILS = [
+  'thumbnails/1.jpg','thumbnails/2.jpg','thumbnails/4.jpg','thumbnails/5.jpg',
+  'thumbnails/6.jpg','thumbnails/7.jpg','thumbnails/8.jpg','thumbnails/9.jpg',
+  'thumbnails/10.jpg','thumbnails/11.jpg',
+];
+
+const MAKES = ['CAT', 'John Deere', 'Komatsu', 'Volvo CE', 'Hitachi', 'Case', 'Bobcat', 'JCB', 'Liebherr', 'Terex'];
+
+const EQUIPMENT_TYPES = [
+  { type: 'Excavator',             models: ['320', '336', '349', 'PC200', 'PC300', 'ZX210', 'EC220', 'ZAxis 210'],      baseBid: 85000,  spread: 180000, color: '#E8EEF4' },
+  { type: 'Wheel Loader',          models: ['980', '644K', 'WA380', 'L150H', 'ZW220', 'W170F'],                         baseBid: 65000,  spread: 220000, color: '#E8F2EC' },
+  { type: 'Bulldozer',             models: ['D6T', 'D8T', 'D65EX', 'D155AX', '850K', '1050K'],                          baseBid: 110000, spread: 320000, color: '#F5EDE8' },
+  { type: 'Motor Grader',          models: ['12M3', '140M3', 'GD655', 'F10C', 'G940B', 'G946'],                         baseBid: 75000,  spread: 250000, color: '#F4F2E8' },
+  { type: 'Skid Steer',            models: ['S650', 'T650', '324G', '330G', 'S770', 'T770'],                             baseBid: 22000,  spread: 48000,  color: '#EAF0F5' },
+  { type: 'Articulated Dump Truck',models: ['745', '740GC', 'TA300', 'A40G', 'TA400', 'HM400'],                         baseBid: 160000, spread: 350000, color: '#F0EBF8' },
+  { type: 'Compactor',             models: ['CS56B', 'CP56B', 'SD122B', 'CS533E', 'CD1100C'],                            baseBid: 32000,  spread: 110000, color: '#E8F5F2' },
+  { type: 'Telehandler',           models: ['TH407', 'TH514', '3518F', '4014F', 'HI-VIZ 3017'],                         baseBid: 38000,  spread: 140000, color: '#F5EFE8' },
+];
+
+const LOCATIONS = [
+  'Houston, TX', 'Dallas, TX', 'Denver, CO', 'Atlanta, GA',
+  'Chicago, IL', 'Phoenix, AZ', 'Portland, OR', 'Charlotte, NC',
+  'Nashville, TN', 'Kansas City, MO', 'Tulsa, OK', 'Salt Lake City, UT',
+];
+
+function seededRandom(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
+function generateItems() {
+  const items = [];
+  const now = Date.now();
+
+  for (let i = 0; i < 100; i++) {
+    const rng = seededRandom(i * 137 + 42);
+    const typeIdx = Math.floor(rng() * EQUIPMENT_TYPES.length);
+    const eq = EQUIPMENT_TYPES[typeIdx];
+    const make = MAKES[Math.floor(rng() * MAKES.length)];
+    const model = eq.models[Math.floor(rng() * eq.models.length)];
+    const year = 2015 + Math.floor(rng() * 9);
+    const location = LOCATIONS[Math.floor(rng() * LOCATIONS.length)];
+    const simCap = 10000 + Math.floor(rng() * 490000);
+    // Items closing soonest (i=0) start near 90% of cap; latest (i=99) near 30%
+    const fraction = i / 99;
+    const baseProgress = 0.9 - fraction * 0.6;
+    const jitter = (rng() - 0.5) * 0.12;
+    const bidProgress = Math.max(0.05, Math.min(0.95, baseProgress + jitter));
+    const rawBid = Math.round(simCap * bidProgress);
+    const startIncrement = getBidIncrement(rawBid);
+    const startBid = Math.max(startIncrement, Math.floor(rawBid / startIncrement) * startIncrement);
+    const bidCount = Math.round(5 + bidProgress * 70 + rng() * 25);
+    // Hours scale with age: ~1000–1600 hrs/year, rounded to nearest 10
+    const hoursPerYear = 1000 + Math.floor(rng() * 600);
+    const hours = Math.round((hoursPerYear * (2026 - year) + Math.floor(rng() * 500)) / 10) * 10;
+    const lotNum = 1001 + i;
+    const watchlisted = lotNum === 1004 || lotNum === 1011 || lotNum === 1017;
+    const thumbnail = watchlisted ? 'thumbnails/5.jpg' : THUMBNAILS[Math.floor(rng() * THUMBNAILS.length)];
+
+    // Items close 10s apart; first at 10s, last at ~1000s
+    const closeTime = now + (10 + i * 10) * 1000;
+
+    items.push({
+      id: lotNum,
+      lotNum,
+      year,
+      make,
+      model,
+      type: eq.type,
+      bgColor: eq.color,
+      thumbnail,
+      location,
+      currentBid: startBid,
+      bidCount,
+      closeTime,
+      originalClose: closeTime,
+      status: 'active',
+      extendedUntil: 0,
+      extendCount: 0,
+      watchlisted,
+      userBid: false,
+      userWinning: false,
+      simCap,
+      hours,
+    });
+  }
+
+  // Sort by closeTime
+  items.sort((a, b) => a.closeTime - b.closeTime);
+  return items;
+}
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+
+let items = generateItems();
+let soldCount = 0;
+let totalSales = 0;
+// ids that have been shown as a card — once carded they never demote back to a row
+let carded = new Set();
+
+// ── RENDER ───────────────────────────────────────────────────────────────────
+
+// How many card columns the responsive grid is currently showing.
+function countColumns(grid) {
+  const tmpl = getComputedStyle(grid).gridTemplateColumns;
+  return tmpl.split(' ').filter(Boolean).length || 1;
+}
+
+// v6 progress bar: full until the last 60s, then drains over the final minute
+// (overrides shared/tile.js's slow 17-minute drain).
+function progressBar(item) {
+  const secsLeft = (item.closeTime - Date.now()) / 1000;
+  if (secsLeft >= 60) return 100;
+  if (secsLeft <= 0)  return 0;
+  return (secsLeft / 60) * 100;
+}
+
+// v7 timer: over a minute out reads "Extended"; the numeric countdown only
+// appears in the final minute (59s and below).
+function renderTimer(el, secsLeft) {
+  const waiting = secsLeft > 59;
+  el.textContent = waiting ? 'Extended' : formatTime(secsLeft);
+  el.classList.toggle('is-extended', waiting);
+}
+// Seed a freshly built card's timer so it doesn't flash a stale value pre-tick.
+function seedTimer(tile, item) {
+  const el = tile.querySelector('.timer-display');
+  if (el) renderTimer(el, Math.max(0, Math.ceil((item.closeTime - Date.now()) / 1000)));
+}
+
+// Fade a freshly shown card in, and seed its progress bar without a sweep.
+function fadeInCard(tile, item) {
+  const prog = tile.querySelector('.progress-fill');
+  if (prog) {
+    prog.style.transition = 'none';
+    prog.style.width = progressBar(item) + '%';
+    requestAnimationFrame(() => { prog.style.transition = ''; });
+  }
+  seedTimer(tile, item);
+  tile.style.animation = 'cardFadeIn 0.4s ease-out';
+  tile.addEventListener('animationend', function done(e) {
+    if (e.animationName !== 'cardFadeIn') return;
+    tile.style.animation = '';
+    tile.removeEventListener('animationend', done);
+  });
+}
+
+// Slide a freshly promoted card in from the right by one slot — matches the FLIP
+// distance/easing so it reads as part of the same reshuffle.
+function slideInCard(tile, item) {
+  const prog = tile.querySelector('.progress-fill');
+  if (prog) { prog.style.transition = 'none'; prog.style.width = progressBar(item) + '%'; }
+  seedTimer(tile, item);
+  const slot = tile.getBoundingClientRect().width + 8; // card width + grid gap
+  tile.style.transition = 'none';
+  tile.style.transform  = `translateX(${slot}px)`;
+  tile.style.opacity    = '0';
+  tile.style.zIndex     = '20';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      tile.style.transition = 'transform 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease-out';
+      tile.style.transform  = '';
+      tile.style.opacity    = '';
+      if (prog) prog.style.transition = '';
+      tile.addEventListener('transitionend', function done(e) {
+        if (e.propertyName !== 'transform') return;
+        tile.style.transition = '';
+        tile.style.zIndex     = '';
+        tile.removeEventListener('transitionend', done);
+      });
+    });
+  });
+}
+
+// Compact row for upcoming (past-the-fold) lots.
+function buildRow(item) {
+  const el = document.createElement('tr');
+  el.className = 'lot-row';
+  el.id = `row-${item.id}`;
+  el.dataset.id = item.id;
+  el.innerHTML = `
+    <td class="rc-time">${fmtWindow(item.closeTime)}</td>
+    <td class="rc-lot">#${item.lotNum}</td>
+    <td class="rc-desc">${item.year} ${item.make} ${item.model} ${item.type}</td>
+    <td class="rc-loc">${item.location}</td>
+    <td class="rc-bid" id="rowbid-${item.id}">${fmt$(item.currentBid)}</td>
+  `;
+  return el;
+}
+
+// 24h close window, floored to the minute, like the example listing.
+function fmtWindow(ts) {
+  const a = new Date(ts); a.setSeconds(0, 0);
+  const b = new Date(a.getTime() + 60000);
+  const f = x => `${x.getHours().toString().padStart(2, '0')}:${x.getMinutes().toString().padStart(2, '0')}`;
+  return `${f(a)} - ${f(b)}`;
+}
+
+// animate: id (or list of ids) that just extended — those cards ride above the
+// rest as they travel. Every moved card glides regardless; this only sets z-index.
+function renderGrid(animate = null) {
+  const animateIds = animate == null
+    ? new Set()
+    : new Set((Array.isArray(animate) ? animate : [animate]).map(String));
+  const watchGrid = document.getElementById('grid-watchlist');
+  const mainGrid  = document.getElementById('grid-main');
+  const rowsBody  = document.getElementById('rows-body');
+  const emptyState = document.getElementById('empty-state');
+
+  const active  = items.filter(i => i.status === 'active').sort((a, b) => a.closeTime - b.closeTime);
+  const watch   = active.filter(i => i.watchlisted);
+  const mainAll = active.filter(i => !i.watchlisted);
+
+  // ── FLIP step 1: snapshot every current card's position (we glide them all) ──
+  const before = new Map();
+  document.querySelectorAll('#grid-watchlist .tile, #grid-main .tile').forEach(el => {
+    before.set(el.dataset.id, el.getBoundingClientRect());
+  });
+
+  // freshly promoted On-the-Block cards, animated in after the reflow
+  const newCards = [];
+
+  // ── 1. Watchlist cards (always shown in full) ──
+  watch.forEach((item, i) => {
+    let tile = document.getElementById(`tile-${item.id}`);
+    if (!tile) { tile = buildTile(item); watchGrid.appendChild(tile); fadeInCard(tile, item); }
+    else if (tile.parentElement !== watchGrid) { watchGrid.appendChild(tile); }
+    tile.style.order = i;
+  });
+
+  // ── 2. Split into cards vs rows ──
+  // Default to ON_THE_BLOCK_ROWS row(s) of cards. Anything already shown as a card
+  // stays a card (a reshuffle can briefly push the block past one row); the rest
+  // wait below as Upcoming rows.
+  const cols = countColumns(mainGrid);
+  const minCards = Math.max(1, ON_THE_BLOCK_ROWS * cols);
+  const cardItems = [];
+  const rowItems  = [];
+  for (const item of mainAll) {
+    if (carded.has(item.id)) {
+      cardItems.push(item);
+    } else if (cardItems.length < minCards) {
+      carded.add(item.id);
+      cardItems.push(item);
+    } else {
+      rowItems.push(item);
+    }
+  }
+
+  // ── 3. On-the-block cards ──
+  cardItems.forEach((item, i) => {
+    const oldRow = document.getElementById(`row-${item.id}`);
+    if (oldRow) oldRow.remove();
+    let tile = document.getElementById(`tile-${item.id}`);
+    if (!tile) { tile = buildTile(item); mainGrid.appendChild(tile); newCards.push({ el: tile, item }); }
+    else if (tile.parentElement !== mainGrid) { mainGrid.appendChild(tile); }
+    tile.style.order = i;
+  });
+
+  // ── 4. Upcoming rows (re-append in order) ──
+  rowItems.forEach(item => {
+    const oldTile = document.getElementById(`tile-${item.id}`);
+    if (oldTile) oldTile.remove();
+    let row = document.getElementById(`row-${item.id}`);
+    if (!row) row = buildRow(item);
+    rowsBody.appendChild(row);
+  });
+
+  // ── 5. Clean up anything that no longer belongs ──
+  const cardSet = new Set([...watch, ...cardItems].map(i => i.id));
+  document.querySelectorAll('#grid-watchlist .tile, #grid-main .tile').forEach(el => {
+    if (!cardSet.has(Number(el.dataset.id))) el.remove();
+  });
+  const rowSet = new Set(rowItems.map(i => i.id));
+  rowsBody.querySelectorAll('.lot-row').forEach(el => {
+    if (!rowSet.has(Number(el.dataset.id))) el.remove();
+  });
+
+  // ── Counts + section visibility ──
+  document.getElementById('watchlist-count').textContent = watch.length ? `${watch.length} item${watch.length !== 1 ? 's' : ''}` : '';
+  document.getElementById('watchlist-empty').classList.toggle('visible', watch.length === 0);
+  document.getElementById('main-count').textContent = cardItems.length ? `${cardItems.length} closing soonest` : '';
+  document.getElementById('section-main').style.display = cardItems.length ? '' : 'none';
+  document.getElementById('upcoming-count').textContent = rowItems.length ? `${rowItems.length} lot${rowItems.length !== 1 ? 's' : ''}` : '';
+  document.getElementById('section-upcoming').style.display = rowItems.length ? '' : 'none';
+  emptyState.classList.toggle('visible', active.length === 0);
+
+  // ── FLIP steps 2 & 3: invert + play for every card that moved ──
+  document.querySelectorAll('#grid-watchlist .tile, #grid-main .tile').forEach(el => {
+    const b = before.get(el.dataset.id);
+    if (!b) return; // freshly added (e.g. promoted from a row) — don't animate in
+    const a = el.getBoundingClientRect();
+    const dx = b.left - a.left;
+    const dy = b.top  - a.top;
+    if (dx === 0 && dy === 0) return;
+    el.style.transition = 'none';
+    el.style.transform  = `translate(${dx}px, ${dy}px)`;
+    // extended cards ride above the rest as they travel
+    if (animateIds.has(el.dataset.id)) el.style.zIndex = '20';
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        el.style.transform  = '';
+        el.addEventListener('transitionend', function cleanup(e) {
+          if (e.propertyName !== 'transform') return;
+          el.style.transition = '';
+          el.style.zIndex     = '';
+          el.removeEventListener('transitionend', cleanup);
+        });
+      });
+    });
+  });
+
+  // ── Entrance for freshly shown cards ──
+  // If there were already cards on screen, a new one is a promotion → slide it in
+  // from the right alongside the FLIP. On first paint (nothing yet) just fade.
+  for (const { el, item } of newCards) {
+    if (before.size > 0) slideInCard(el, item);
+    else fadeInCard(el, item);
+  }
+}
+
+function updateBidStatus(item) {
+  const el = document.getElementById(`status-${item.id}`);
+  if (!el) return;
+  el.className = 'bid-status-banner' + (item.userBid ? (item.userWinning ? ' winning' : ' outbid') : '');
+  el.textContent  = item.userBid ? (item.userWinning ? 'Winning' : 'Outbid') : '';
+}
+
+function updateTile(item, secsLeft) {
+  if (secsLeft === undefined) secsLeft = Math.max(0, Math.ceil((item.closeTime - Date.now()) / 1000));
+
+  // Keep the row representation's price live even when it isn't a card.
+  const rowBid = document.getElementById(`rowbid-${item.id}`);
+  if (rowBid) rowBid.textContent = fmt$(item.currentBid);
+
+  const state = timerState(secsLeft);
+  const pct = progressBar(item);
+
+  const tile = document.getElementById(`tile-${item.id}`);
+  if (!tile) return;
+
+  // Update state class (preserve extending so its animation isn't killed mid-frame)
+  const wasExtending = tile.classList.contains('extending');
+  tile.className = `tile state-${state}${item.watchlisted ? ' watchlisted' : ''}${wasExtending ? ' extending' : ''}`;
+
+  // Update timer
+  const timerEl = document.getElementById(`timer-${item.id}`);
+  if (timerEl) renderTimer(timerEl, secsLeft);
+
+  // Update progress
+  const prog = document.getElementById(`prog-${item.id}`);
+  if (prog) prog.style.width = pct + '%';
+
+  // Extended badge
+  const badge = document.getElementById(`badge-${item.id}`);
+  if (badge) badge.classList.toggle('visible', Date.now() < item.extendedUntil);
+
+  // Bid info
+  const bidEl = document.getElementById(`bid-${item.id}`);
+  if (bidEl) bidEl.textContent = fmt$(item.currentBid);
+  const countEl = document.getElementById(`count-${item.id}`);
+  if (countEl) countEl.textContent = item.bidCount + ' bids';
+  updateBidStatus(item);
+
+  const btnEl = document.getElementById(`btn-${item.id}`);
+  if (btnEl) {
+    if (secsLeft <= 0) {
+      btnEl.classList.remove('urgent-flash', 'flash');
+      btnEl.classList.add('sold');
+      btnEl.disabled = true;
+      btnEl.textContent = 'SOLD';
+    } else if (!btnEl.classList.contains('flash')) {
+      btnEl.classList.toggle('urgent-flash', item.watchlisted && secsLeft < 30);
+    }
+  }
+}
+
+
+// ── ACTIONS ──────────────────────────────────────────────────────────────────
+
+// v7: a late bid bumps the lot BACK to a full minute (not +1:00 on top of what's
+// left). The reset drops it behind the closing-soon cluster; enforceSpacing then
+// keeps every active lot ≥10s apart, producing a clean 10s end-game cascade.
+const MIN_GAP_MS = 10000;
+function enforceSpacing() {
+  const active = items.filter(i => i.status === 'active').sort((a, b) => a.closeTime - b.closeTime);
+  for (let k = 1; k < active.length; k++) {
+    const earliest = active[k - 1].closeTime + MIN_GAP_MS;
+    if (active[k].closeTime < earliest) active[k].closeTime = earliest;
+  }
+}
+function extendItem(item, resetSeconds) {
+  const now = Date.now();
+  item.closeTime = now + resetSeconds * 1000; // reset remaining time back to ~1:00
+  enforceSpacing();                            // push any lot now within 10s of another
+  item.extendedUntil = now + 5000;
+  item.extendCount++;
+
+  // Flash full black only for watched/bid-on items
+  if (item.watchlisted || item.userBid) {
+    const tile = document.getElementById(`tile-${item.id}`);
+    if (tile) {
+      tile.classList.remove('extending');
+      void tile.offsetWidth;
+      tile.classList.add('extending');
+      setTimeout(() => tile.classList.remove('extending'), 3500);
+    }
+  }
+}
+
+function sellItem(item) {
+  if (item.status === 'sold') return;
+  item.status = 'sold';
+  soldCount++;
+  totalSales += item.currentBid;
+
+  const overlay = document.getElementById(`overlay-${item.id}`);
+  if (overlay) {
+    overlay.querySelector('.sold-price').textContent = fmt$(item.currentBid);
+    overlay.classList.add('visible');
+  }
+
+  const tile = document.getElementById(`tile-${item.id}`);
+
+  // Fade out after short delay
+  setTimeout(() => {
+    if (tile) tile.classList.add('selling');
+    setTimeout(() => {
+      if (tile) tile.remove();
+      const active = items.filter(i => i.status === 'active');
+      if (active.length === 0) {
+        document.getElementById('empty-state').classList.add('visible');
+      }
+    }, 700);
+  }, 1800);
+}
+
+function toggleWatchlist(itemId) {
+  const item = items.find(i => i.id === itemId);
+  if (!item || item.status !== 'active') return;
+  item.watchlisted = !item.watchlisted;
+
+  const tile = document.getElementById(`tile-${item.id}`);
+  const btn  = document.getElementById(`watch-${item.id}`);
+  if (tile) tile.classList.toggle('watchlisted', item.watchlisted);
+  if (btn) {
+    btn.classList.toggle('active', item.watchlisted);
+    btn.title = item.watchlisted ? 'Remove from watchlist' : 'Add to watchlist';
+    const path = btn.querySelector('path');
+    if (path) {
+      path.setAttribute('fill',   item.watchlisted ? '#F57C00' : 'none');
+      path.setAttribute('stroke', item.watchlisted ? '#F57C00' : '#9CA3AF');
+    }
+  }
+  renderGrid();
+}
+
+function placeBid(itemId) {
+  const item = items.find(i => i.id === itemId);
+  if (!item || item.status !== 'active') return;
+
+  const secsLeft = Math.max(0, Math.ceil((item.closeTime - Date.now()) / 1000));
+  const increment = getBidIncrement(item.currentBid);
+  item.currentBid += increment;
+  item.bidCount++;
+
+  // Mark user as winning bidder
+  item.userBid = true;
+  item.userWinning = true;
+  updateBidStatus(item);
+
+  // Auto-watchlist on bid
+  if (!item.watchlisted) {
+    item.watchlisted = true;
+    const wBtn = document.getElementById(`watch-${item.id}`);
+    if (wBtn) {
+      wBtn.classList.add('active');
+      wBtn.title = 'Remove from watchlist';
+      const path = wBtn.querySelector('path');
+      if (path) { path.setAttribute('fill','#F57C00'); path.setAttribute('stroke','#F57C00'); }
+    }
+  }
+
+  let extended = false;
+  if (secsLeft < 60) {
+    extendItem(item, 60);
+    extended = true;
+  }
+
+  // Black overlay with BID PLACED text
+  // Strip the extend flash so it doesn't darken the overlay via CSS filter
+  const bidTile = document.getElementById(`tile-${item.id}`);
+  if (bidTile) bidTile.classList.remove('extending');
+  const bidOverlay = document.getElementById(`bid-overlay-${item.id}`);
+  if (bidOverlay) {
+    bidOverlay.classList.add('visible');
+    setTimeout(() => bidOverlay.classList.remove('visible'), 4000);
+  }
+
+  updateTile(item);
+  // Bidding auto-watchlists, which moves the tile up into the watchlist section.
+  renderGrid(item.id);
+
+  if (extended) {
+    showToast(`LOT #${item.lotNum} — Bid placed! Reset to 1:00`, 'purple');
+  } else {
+    showToast(`LOT #${item.lotNum} — Bid placed! ${fmt$(item.currentBid)}`, 'orange');
+  }
+}
+
+// ── SIMULATION ───────────────────────────────────────────────────────────────
+
+function simBidOnItem(item) {
+  if (item.currentBid >= item.simCap) return false;
+  const secsLeft = (item.closeTime - Date.now()) / 1000;
+  const increment = getBidIncrement(item.currentBid);
+  item.currentBid += increment;
+  item.bidCount++;
+
+  if (item.userBid && item.userWinning) {
+    item.userWinning = false;
+    updateBidStatus(item);
+    showToast(`LOT #${item.lotNum} — You've been outbid!`, 'orange');
+  }
+
+  let extended = false;
+  if (secsLeft < 60 && Math.random() < 0.65) {
+    extendItem(item, 60);
+    extended = true;
+  }
+
+  updateTile(item);
+
+  if (extended && (item.watchlisted || item.userBid)) showToast(`LOT #${item.lotNum} — New bid! Reset to 1:00`, 'purple');
+  return extended;
+}
+
+function simulateActivity() {
+  const now = Date.now();
+  const active = items.filter(i => i.status === 'active');
+  if (active.length === 0) return;
+
+  // Weighted pool: hot items (< 90s) appear 4x, warm (< 5min) 2x, cool 1x
+  const pool = [];
+  for (const item of active) {
+    const secs = (item.closeTime - now) / 1000;
+    if (secs <= 0) continue;
+    const weight = secs < 90 ? 4 : secs < 300 ? 2 : 1;
+    for (let w = 0; w < weight; w++) pool.push(item);
+  }
+  if (pool.length === 0) return;
+
+  // Pick 1–3 unique items per cycle
+  const count = 1 + Math.floor(Math.random() * 3);
+  const picked = new Set();
+  for (let i = 0; i < count * 5 && picked.size < count; i++) {
+    picked.add(pool[Math.floor(Math.random() * pool.length)]);
+  }
+  // Batch the whole cycle into a single reshuffle so the FLIPs don't stack.
+  const extendedIds = [];
+  for (const item of picked) {
+    if (simBidOnItem(item) && V2_RESHUFFLE) extendedIds.push(item.id);
+  }
+  if (extendedIds.length) renderGrid(extendedIds);
+}
+
+// ── TICK ─────────────────────────────────────────────────────────────────────
+
+function tick() {
+  const now = Date.now();
+  let needsReorder = false;
+
+  for (const item of items) {
+    if (item.status !== 'active') continue;
+
+    const msLeft = item.closeTime - now;
+
+    // One full second past 0:00 → sell
+    if (msLeft <= -1000) {
+      sellItem(item);
+      needsReorder = true;
+      continue;
+    }
+
+    // Clamp display to 0 so it shows 0:00 for that final second
+    const secsLeft = Math.max(0, Math.ceil(msLeft / 1000));
+    updateTile(item, secsLeft);
+  }
+
+  if (needsReorder) renderGrid();
+}
+
+// ── TOASTS ───────────────────────────────────────────────────────────────────
+
+function showToast(msg, type = 'orange') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3100);
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+
+renderGrid();
+setInterval(tick, 1000);
+
+setTimeout(function scheduleActivity() {
+  simulateActivity();
+  setTimeout(scheduleActivity, 2000 + Math.random() * 3000);
+}, 6000);
+
+// Recompute the card/row split when the viewport changes (debounced).
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => renderGrid(), 150);
+});
+
+// Tab visibility — clean up stuck sell animations when user returns to tab
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  document.querySelectorAll('.tile').forEach(el => {
+    const item = items.find(i => i.id === Number(el.dataset.id));
+    if (!item || item.status === 'sold') el.remove();
+  });
+  renderGrid();
+});
+
+// Version badge
+const _v = document.querySelector('meta[name="build-version"]');
+if (_v) document.getElementById('version-badge').textContent = 'v' + _v.content;
+
+</script>
+</body>
+</html>
